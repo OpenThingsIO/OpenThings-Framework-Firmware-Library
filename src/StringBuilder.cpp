@@ -13,16 +13,13 @@ StringBuilder::~StringBuilder() {
   delete buffer;
 }
 
-void StringBuilder::printf(char *format, ...) {
+void StringBuilder::bprintf(char *format, va_list args) {
   // Don't do anything if the buffer already contains invalid data.
   if (!valid) {
     return;
   }
 
-  va_list args;
-  va_start(args, format);
   length += vsnprintf(&buffer[length], maxLength - length, format, args);
-  va_end(args);
 
   // The builder is invalid if the string fits perfectly in the buffer since there wouldn't be room for the null terminator.
   if (length >= maxLength) {
@@ -32,7 +29,25 @@ void StringBuilder::printf(char *format, ...) {
   }
 }
 
-char* StringBuilder::toString() const {
+void StringBuilder::bprintf(char *const format, ...) {
+  va_list args;
+  va_start(args, format);
+  bprintf(format, args);
+  va_end(args);
+}
+
+void StringBuilder::bprintf(const __FlashStringHelper *const format, va_list args) {
+  bprintf((char *) format, args);
+}
+
+void StringBuilder::bprintf(const __FlashStringHelper *const format, ...) {
+  va_list args;
+  va_start(args, format);
+  bprintf(format, args);
+  va_end(args);
+}
+
+char *StringBuilder::toString() const {
   return &buffer[0];
 }
 

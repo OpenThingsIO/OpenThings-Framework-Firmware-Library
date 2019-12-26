@@ -35,7 +35,7 @@ OpenThingsFramework::OpenThingsFramework(uint16_t webServerPort, const String &w
 }
 
 char *makeMapKey(StringBuilder *sb, HTTPMethod method, const char *path) {
-  sb->printf((char *) F("%d%s"), method, path);
+  sb->bprintf(F("%d%s"), method, path);
   return sb->toString();
 }
 
@@ -90,15 +90,17 @@ void OpenThingsFramework::localServerLoop() {
   Serial.println(F("Parsing request"));
   Request request(buffer, length);
 
-  Serial.println(F("Fetching response"));
-  Response res = getResponse(request);
+  Serial.println(F("Filling response"));
+  Response res = Response();
+  fillResponse(request, res);
 
-  Serial.println(F("Formatting response"));
-  char *responseString = res.toString();
-  if (responseString != nullptr) {
+  Serial.println(F("Sending response"));
+  if (res.isValid()) {
+    char *responseString = res.toString();
+    Serial.printf((char *) F("Response message is: %s\n"), responseString);
     wifiClient.print(responseString);
   } else {
-    wifiClient.println(F("HTTP/1.1 500 OTF error\r\nAn error occurred in Response.toString()\r\n"));
+    wifiClient.print(F("HTTP/1.1 500 OTF error\r\nResponse string could not be built\r\n"));
     Serial.println(F("An error occurred while building the response string."));
   }
 
@@ -136,22 +138,22 @@ void OpenThingsFramework::webSocketCallback(WStype_t type, uint8_t *payload, siz
         requestId[ID_LENGTH] = '\0';
 
         Request request(&message[HEADER_LENGTH], length - HEADER_LENGTH);
-        Response res = getResponse(request);
+        Response res = Response();
+        res.bprintf(F("RES: %s\r\n"), requestId);
+        fillResponse(request, res);
 
-        char *responseString = res.toString();
-        if (responseString == nullptr) {
+        if (res.isValid()) {
+          webSocket.sendTXT(res.toString(), res.getLength());
+        } else {
           Serial.println(F("An error occurred building response string"));
-          responseString = (char *) "HTTP/1.1 500 Internal Error\r\n\r\nAn internal error occurred";
+          StringBuilder builder(100);
+          builder.bprintf(F("RES: %s\r\n%s"), requestId,
+                          F("HTTP/1.1 500 Internal Error\r\n\r\nAn internal error occurred"));
+          if (!builder.isValid()) {
+            Serial.println(F("Builder is not valid"));
+            return;
+          }
         }
-
-        StringBuilder builder(Response::MAX_RESPONSE_LENGTH);
-        builder.printf((char *) F("RES: %s\n%s"), requestId, responseString);
-        if (!builder.isValid()) {
-          Serial.println(F("Builder is not valid"));
-          return;
-        }
-
-        webSocket.sendTXT(builder.toString(), builder.getLength());
       } else {
         Serial.println(F("Websocket message does not start with the correct prefix."));
       }
@@ -170,9 +172,12 @@ void OpenThingsFramework::webSocketCallback(WStype_t type, uint8_t *payload, siz
   }
 }
 
-Response OpenThingsFramework::getResponse(const Request &req) {
+void OpenThingsFramework::fillResponse(const Request &req, Response &res) {
   if (req.body == nullptr) {
-    return Response(400, "Could not parse request");
+    res.writeStatus(400, F("Invalid request"));
+    res.writeHeader(F("content-type"), F("text/plain"));
+    res.writeBodyChunk(F("Could not parse request"));
+    return;
   }
 
   // TODO handle trailing slash in path?
@@ -193,13 +198,15 @@ Response OpenThingsFramework::getResponse(const Request &req) {
 
   if (callback != nullptr) {
     Serial.println(F("Found callback"));
-    return callback(req);
+    callback(req, res);
   } else {
     // Run the missing page callback if none of the registered paths matched.
-    return missingPageCallback(req);
+    missingPageCallback(req, res);
   }
 }
 
-Response OpenThingsFramework::defaultMissingPageCallback(const Request &req) {
-  return Response(404, F("Not found"));
+void OpenThingsFramework::defaultMissingPageCallback(const Request &req, Response &res) {
+  res.writeStatus(404, F("Not found"));
+  res.writeHeader(F("content-type"), F("text/plain"));
+  res.writeBodyChunk(F("The requested page does not exist"));
 }

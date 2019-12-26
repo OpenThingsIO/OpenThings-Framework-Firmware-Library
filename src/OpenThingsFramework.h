@@ -9,7 +9,7 @@
 #include <WebSocketsClient.h>
 
 namespace OTF {
-    typedef Response (*callback_t)(const Request &request);
+    typedef void (*callback_t)(const Request &request, Response &response);
 
     class OpenThingsFramework {
     private:
@@ -21,10 +21,10 @@ namespace OTF {
 
         void webSocketCallback(WStype_t type, uint8_t *payload, size_t length);
 
-        Response getResponse(const Request &req);
+        void fillResponse(const Request &req, Response &res);
         void localServerLoop();
 
-        static Response defaultMissingPageCallback(const Request &req);
+        static void defaultMissingPageCallback(const Request &req, Response &res);
 
     public:
         OpenThingsFramework(uint16_t webServerPort, const String &webSocketHost, uint16_t webSocketPort,

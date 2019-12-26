@@ -15,20 +15,33 @@ namespace OTF {
         size_t maxLength;
         char *buffer;
         size_t length = 0;
+
+    protected:
         bool valid = true;
 
     public:
         explicit StringBuilder(size_t maxLength);
+
         ~StringBuilder();
 
         /**
          * Inserts a string into the buffer at the current position using the same formatting rules as printf. If the operation
          * would cause the buffer length to be exceeded or some other error occurs, the StringBuilder will be marked as invalid.
-         * @param format
-         * @param ...
+         * @param format The format string to pass to sprintf.
+         * @param ... The format arguments to pass to sprintf.
          */
-        void printf(char *format, ...);
+        void bprintf(char *format, va_list args);
 
+        void bprintf(char * format, ...);
+
+        void bprintf(const __FlashStringHelper *const format, va_list args);
+
+        void bprintf(const __FlashStringHelper *const format, ...);
+
+        /**
+         * Returns the null-terminated represented string stored in the underlying buffer.
+         * @return The null-terminated represented string stored in the underlying buffer.
+         */
         char *toString() const;
 
         size_t getLength() const;

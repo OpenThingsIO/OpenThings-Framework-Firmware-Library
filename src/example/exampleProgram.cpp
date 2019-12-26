@@ -11,36 +11,31 @@ extern "C" {
 
 OTF::OpenThingsFramework *otf = nullptr;
 
-OTF::Response uptime(const OTF::Request &req) {
-  String body = "The server has been up for ";
-  if (req.getQueryParameter(F("useMicros")) != nullptr) {
-    body += String(micros()) + " microseconds";
-  } else {
-    body += String(millis()) + " milliseconds";
-  }
-
-  OTF::Response response(200, body);
-  response.setHeader((char *) F("content-type"), (char *) F("text/plain"));
-  return response;
+void uptime(const OTF::Request &req, OTF::Response &res) {
+  res.writeStatus(200, "OK");
+  res.writeHeader(F("content-type"),F("text/plain"));
+  bool useMicros = req.getQueryParameter(F("useMicros")) != nullptr;
+  res.writeBodyChunk(F("The server has been up for %d %s"), useMicros ? micros() : millis(), useMicros ? F("microseconds") : F("milliseconds"));
 }
 
-OTF::Response memoryUsage(const OTF::Request &req) {
-  String body = "The free heap size is " + String(system_get_free_heap_size());
-  OTF::Response response(200, body);
-  response.setHeader((char *) F("content-type"), (char *) F("text/plain"));
-  return response;
+void memoryUsage(const OTF::Request &req, OTF::Response &res) {
+  res.writeStatus(200, "OK");
+  res.writeHeader(F("content-type"), F("text/plain"));
+  res.writeBodyChunk(F("The free heap size is %d bytes"), system_get_free_heap_size());
 }
 
-OTF::Response logMessage(const OTF::Request &req) {
+void logMessage(const OTF::Request &req, OTF::Response &res) {
   std::string body = std::string(req.getBody(), req.getBodyLength());
   Serial.println(body.c_str());
-  return OTF::Response(200, F("The message has been logged to the console"));
+  res.writeStatus(200, "OK");
+  res.writeHeader(F("content-type"),F("text/plain"));
+  res.writeBodyChunk(F("The message has been logged to the serial monitor"));
 }
 
-OTF::Response missingPage(const OTF::Request &req) {
-  OTF::Response response(404, "That page does not exist.");
-  response.setHeader((char *) F("content-type"), (char *) F("text/plain"));
-  return response;
+void missingPage(const OTF::Request &req, OTF::Response &res) {
+  res.writeStatus(404, F("Not found"));
+  res.writeHeader(F("content-type"), F("text/plain"));
+  res.writeBodyChunk(F("That page does not exist"));
 }
 
 void setup() {

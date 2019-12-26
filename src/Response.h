@@ -12,34 +12,49 @@
 
 namespace OTF {
 
-    class Response {
+    class Response : public StringBuilder {
         friend class OpenThingsFramework;
 
     private:
-        uint16_t statusCode;
-        String body;
-        LinkedMap<const char *> headers;
-        /** The StringBuilder that will be used by the toString() method. */
-        StringBuilder builder = StringBuilder(RESPONSE_BUFFER_SIZE);
+        enum ResponseStatus {
+            CREATED, STATUS_WRITTEN, HEADERS_WRITTEN, BODY_WRITTEN
+        };
+        ResponseStatus responseStatus = CREATED;
 
-        /** Returns a null terminated string of this response, or NULL if an error occurs while building the string. */
-        char *toString();
+        Response() : StringBuilder(RESPONSE_BUFFER_SIZE) {}
+
 
     public:
         static const size_t MAX_RESPONSE_LENGTH = RESPONSE_BUFFER_SIZE;
 
-        Response(uint16_t statusCode, const String &body);
+        /** Writes the status code/message to the response. This must be called before writing the headers or body. */
+        void writeStatus(uint16_t statusCode, const std::string &statusMessage);
 
-        /** Sets a response header. If called multiple times for the same header name, the header will be specified
-         * multiple times to create a list.
+        /** Writes the status code/message to the response. This must be called before writing the headers or body. */
+        void writeStatus(uint16_t statusCode, const __FlashStringHelper *const statusMessage);
+
+        /** Writes the status code to the response. This must be called before writing the headers or body. */
+        void writeStatus(uint16_t statusCode);
+
+        /** Sets a response header. If called multiple times with the same header name, the header will be specified
+         * multiple times to create a list. This function must not be called before the status has been written or after
+         * the body has been written.
          */
-        void setHeader(char *name, const char *value);
+        void writeHeader(char *const name, char *const value);
 
-        /** Sets a response header. If called multiple times for the same header name, the header will be specified
-         * multiple times to create a list.
+        void writeHeader(const __FlashStringHelper *const name, char *const value);
+
+        void writeHeader(const __FlashStringHelper *const name, const __FlashStringHelper *const value);
+
+        /**
+         * Calls sprintf to write a chunk of data to the response body. This method may only be called after any desired
+         * headers have been set.
+         * @param format The format string to pass to sprintf.
+         * @param ... The format arguments to pass to sprintf.
          */
-        void setHeader(const __FlashStringHelper *name, const char *value);
+        void writeBodyChunk(char *format, ...);
 
+        void writeBodyChunk(const __FlashStringHelper *const format, ...);
     };
 }
 #endif
