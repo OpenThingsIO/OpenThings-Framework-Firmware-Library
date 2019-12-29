@@ -13,6 +13,7 @@ Request::Request(char *str, size_t length) {
   for (; index < length; index++) {
     if (str[index] == '\0') {
       // Reject any requests that contain null characters outside of the body to prevent null byte poisoning attacks.
+      requestType = INVALID;
       return;
     } else if (str[index] == ' ') {
       // Null terminate the HTTP method.
@@ -26,6 +27,7 @@ Request::Request(char *str, size_t length) {
   }
   if (index >= length) {
     // Error if the HTTP method extends to the end of the request.
+    requestType = INVALID;
     return;
   }
 
@@ -45,6 +47,7 @@ Request::Request(char *str, size_t length) {
   } else {
     Serial.println(F("Could not match HTTP method"));
     // Error if the method isn't a standard method.
+    requestType = INVALID;
     return;
   }
 
@@ -58,12 +61,14 @@ Request::Request(char *str, size_t length) {
   while (true) {
     if (++index >= length) {
       // Error if the target extends to the end of the request.
+      requestType = INVALID;
       return;
     }
 
     character = str[index];
     if (character == '\0') {
       // Reject any requests that contain null characters outside of the body to prevent null byte poisoning attacks.
+      requestType = INVALID;
       return;
     } else if (character == '?' || character == '#' || character == ' ') {
       // Null terminate the path.
@@ -78,6 +83,7 @@ Request::Request(char *str, size_t length) {
 
     // Exit if an error occurred while parsing the query.
     if (character == '\0') {
+      requestType = INVALID;
       return;
     }
   }
@@ -87,6 +93,7 @@ Request::Request(char *str, size_t length) {
     while (index < length && (character = str[++index]) != ' ') {
       if (character == '\0') {
         // Reject any requests that contain null characters outside of the body to prevent null byte poisoning attacks.
+        requestType = INVALID;
         return;
       }
     }
@@ -101,6 +108,7 @@ Request::Request(char *str, size_t length) {
   for (; index < length; index++) {
     if (str[index] == '\0') {
       // Reject any requests that contain null characters outside of the body to prevent null byte poisoning attacks.
+      requestType = INVALID;
       return;
     } else if (str[index] == '\r') {
       // Replace the carriage return with a null terminator.
@@ -121,6 +129,7 @@ Request::Request(char *str, size_t length) {
     for (; index < length; index++) {
       if (str[index] == '\0') {
         // Reject any requests that contain null characters outside of the body to prevent null byte poisoning attacks.
+        requestType = INVALID;
         return;
       } else if (str[index] == ':' && colon == nullptr) {
         colon = &str[index];
@@ -128,6 +137,7 @@ Request::Request(char *str, size_t length) {
       } else if (str[index] == '\r') {
         if (colon == nullptr) {
           // Error if there is an illegal header line that doesn't contain a colon.
+          requestType = INVALID;
           return;
         }
 
@@ -176,11 +186,14 @@ Request::Request(char *str, size_t length) {
      * `bodyLength` to 0 so it never gets read.
      */
     body = &str[index - 1];
+    requestType = NORMAL;
   } else if (index > length) {
     // If the cursor is more than 1 character after the end of the request, it means the request was somehow illegally formatted.
+    requestType = INVALID;
     return;
   } else {
     body = &str[index];
+    requestType = NORMAL;
   }
 
   bodyLength = length - index;
@@ -252,3 +265,5 @@ char *Request::getHeader(const __FlashStringHelper *key) const { return headers.
 char *Request::getBody() const { return body; }
 
 size_t Request::getBodyLength() const { return bodyLength; }
+
+RequestType Request::getType() const { return requestType; }

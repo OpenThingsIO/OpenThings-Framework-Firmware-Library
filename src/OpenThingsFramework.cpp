@@ -173,7 +173,7 @@ void OpenThingsFramework::webSocketCallback(WStype_t type, uint8_t *payload, siz
 }
 
 void OpenThingsFramework::fillResponse(const Request &req, Response &res) {
-  if (req.body == nullptr) {
+  if (req.getType() == INVALID) {
     res.writeStatus(400, F("Invalid request"));
     res.writeHeader(F("content-type"), F("text/plain"));
     res.writeBodyChunk(F("Could not parse request"));

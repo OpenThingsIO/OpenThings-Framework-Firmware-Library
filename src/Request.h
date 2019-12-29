@@ -8,6 +8,7 @@
 namespace OTF {
 
     enum HTTPMethod { HTTP_ANY, HTTP_GET, HTTP_POST, HTTP_PUT, HTTP_PATCH, HTTP_DELETE, HTTP_OPTIONS };
+    enum RequestType { INVALID, NORMAL, MULTIPART };
 
     class Request {
         friend class OpenThingsFramework;
@@ -20,6 +21,7 @@ namespace OTF {
         LinkedMap<char *> headers;
         char *body = nullptr;
         size_t bodyLength = 0;
+        RequestType requestType = INVALID;
 
         /**
          * Parses an HTTP request. The parser makes some assumptions about the message format that may not hold if the
@@ -65,13 +67,17 @@ namespace OTF {
          */
         char *getHeader(const __FlashStringHelper *key) const;
 
-        /** Returns the body of the request, or NULL if the request could not be parsed. THIS STRING IS NOT NULL TERMINATED,
-         * AND IT MAY CONTAIN NULL CHARACTERS.
+        /**
+         * Returns the body of the request. THIS STRING IS NOT NULL TERMINATED, AND IT MAY CONTAIN NULL CHARACTERS. If
+         * the request could not be parsed (as indicated by the getType() method), this method has undefined behavior.
          */
         char *getBody() const;
 
         /** Returns the length of the request body. */
         size_t getBodyLength() const;
+
+        /** Indicates if this request is a multipart request, a non-multipart request, or an illegally formatted request. */
+        RequestType getType() const;
     };
 }
 #endif
