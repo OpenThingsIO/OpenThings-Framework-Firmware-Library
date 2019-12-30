@@ -44,6 +44,17 @@ namespace OTF {
          */
         char parseQuery(char *str, size_t length, size_t &index);
 
+        /**
+         * Parses a single header and adds it to `headers`.
+         * @param str The full request string.
+         * @param length The length of the full request.
+         * @param index The index of the first character in the header line. When the function terminates successfully,
+         * this will be updated to the index of the first character after the CRLF sequence at the end of the header.
+         * @param headers The set of headers to add the parsed header to.
+         * @return A boolean indicating if the header could be parsed successfully.
+         */
+        bool parseHeader(char *str, size_t length, size_t &index, LinkedMap<char *> &headers);
+
     public:
 
         /** Returns the path of the request (not including the query) as a null-terminated string. */

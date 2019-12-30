@@ -119,61 +119,12 @@ Request::Request(char *str, size_t length) {
     }
   }
 
-  // Parse the headers.
-  // Continue parsing until "\r\n\r\n" is encountered (indicates the end of headers) or the end of the string is reached (caused by invalid requests).
+  // Parse headers until "\r\n\r\n" is encountered (indicates the end of headers) or the end of the string is reached (caused by invalid requests).
   while (index < length && str[index] != '\r') {
-    char *lineStart = &str[index];
-    char *colon = nullptr;
-    char *value = nullptr;
-
-    for (; index < length; index++) {
-      if (str[index] == '\0') {
-        // Reject any requests that contain null characters outside of the body to prevent null byte poisoning attacks.
-        requestType = INVALID;
-        return;
-      } else if (str[index] == ':' && colon == nullptr) {
-        colon = &str[index];
-        str[index] = '\0';
-      } else if (str[index] == '\r') {
-        if (colon == nullptr) {
-          // Error if there is an illegal header line that doesn't contain a colon.
-          requestType = INVALID;
-          return;
-        }
-
-        // Terminate the header value.
-        str[index] = '\0';
-
-        // Handle headers without a value.
-        if (value == nullptr) {
-          // Replace the null pointer with a pointer to an empty string to differentiate between empty header and unspecified headers.
-          value = &str[index];
-        }
-
-        // Trim trailing whitespace from the header value (https://tools.ietf.org/html/rfc7230#section-3.2.4).
-        for (size_t i = index; i > 0; i--) {
-          // Replace whitespace with null terminators so the value string will terminate at the first space after it.
-          if (isspace(str[index])) {
-            str[index] = '\0';
-          } else {
-            break;
-          }
-        }
-
-        Serial.printf((char *) F("Found header '%s' with value '%s'.\n"), lineStart, value);
-        // TODO handle duplicate header fields by concatenating them with a comma.
-        headers.add(lineStart, value);
-
-        // Move past the carriage return and assumed line feed.
-        index += 2;
-        break;
-      } else if (colon != nullptr && value == nullptr && !isspace(str[index])) {
-        // Mark the location of the header value after skipping whitespace.
-        value = &str[index];
-      } else if (value == nullptr) {
-        // Make the header name lowercase.
-        str[index] = tolower(str[index]);
-      }
+    if (!parseHeader(str, length, index, headers)) {
+      // Reject the request if an error occurs while parsing headers.
+      requestType = INVALID;
+      return;
     }
   }
 
@@ -251,6 +202,59 @@ char Request::parseQuery(char *str, size_t length, size_t &index) {
   return '\0';
 }
 
+bool Request::parseHeader(char *str, size_t length, size_t &index, LinkedMap<char *> &headers) {
+  char *lineStart = &str[index];
+  char *colon = nullptr;
+  char *value = nullptr;
+
+  for (; index < length; index++) {
+    if (str[index] == '\0') {
+      // Reject any requests that contain null characters outside of the body to prevent null byte poisoning attacks.
+      return false;
+    } else if (str[index] == ':' && colon == nullptr) {
+      colon = &str[index];
+      str[index] = '\0';
+    } else if (str[index] == '\r') {
+      if (colon == nullptr) {
+        // Error if there is an illegal header line that doesn't contain a colon.
+        return false;
+      }
+
+      // Terminate the header value.
+      str[index] = '\0';
+
+      // Handle headers without a value.
+      if (value == nullptr) {
+        // Replace the null pointer with a pointer to an empty string to differentiate between empty header and unspecified headers.
+        value = &str[index];
+      }
+
+      // Trim trailing whitespace from the header value (https://tools.ietf.org/html/rfc7230#section-3.2.4).
+      for (size_t i = index; i > 0; i--) {
+        // Replace whitespace with null terminators so the value string will terminate at the first space after it.
+        if (isspace(str[index])) {
+          str[index] = '\0';
+        } else {
+          break;
+        }
+      }
+
+      Serial.printf((char *) F("Found header '%s' with value '%s'.\n"), lineStart, value);
+      // TODO handle duplicate header fields by concatenating them with a comma.
+      headers.add(lineStart, value);
+
+      // Move past the carriage return and assumed line feed.
+      index += 2;
+      break;
+    } else if (colon != nullptr && value == nullptr && !isspace(str[index])) {
+      // Mark the location of the header value after skipping whitespace.
+      value = &str[index];
+    } else if (value == nullptr) {
+      // Make the header name lowercase.
+      str[index] = tolower(str[index]);
+    }
+  }
+}
 
 char *Request::getPath() const { return path; }
 
