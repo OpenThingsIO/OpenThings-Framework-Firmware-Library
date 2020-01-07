@@ -1,11 +1,13 @@
 #include "OpenThingsFramework.h"
 #include "StringBuilder.h"
 
-// The size of the buffer to store incoming requests in. Larger requests will be discarded.
-#define REQUEST_BUFFER_SIZE 2048
+// The size of the buffer to store the incoming request line and headers (does not include body). Larger requests will be discarded.
+#define HEADERS_BUFFER_SIZE 1024
 // TODO This doesn't work because the macro is redefined in WebSockets.h
+// The size of the buffer to store incoming websocket requests in. Larger requests will be discarded.
 #define WEBSOCKETS_MAX_DATA_SIZE REQUEST_BUFFER_SIZE
-#define WIFI_CONNECTION_TIMEOUT 1000
+// The timeout for reading and parsing incoming requests.
+#define WIFI_CONNECTION_TIMEOUT 1500
 /* How often to try to reconnect to the websocket if the connection is lost. Each reconnect attempt is blocking and has
  * a 5 second timeout.
  */
@@ -69,11 +71,15 @@ void OpenThingsFramework::localServerLoop() {
     return;
   }
 
-  // Read the full request from the client.
-  char buffer[REQUEST_BUFFER_SIZE];
+  // Update the timeout for each data read to ensure that the total timeout is WIFI_CONNECTION_TIMEOUT.
+  unsigned int timeout = WIFI_CONNECTION_TIMEOUT;
+  unsigned long lastTime = millis();
+#define UPDATE_TIMEOUT {unsigned long diff = millis() - lastTime; if (diff >= timeout) { timeout = 0; continue; } timeout -= diff; wifiClient.setTimeout(timeout);}
+
+  char buffer[HEADERS_BUFFER_SIZE];
   size_t length = 0;
   while (wifiClient.available()) {
-    if (length >= REQUEST_BUFFER_SIZE) {
+    if (length >= HEADERS_BUFFER_SIZE) {
       Serial.println(F("Request buffer is full, aborting"));
       wifiClient.print(F("HTTP/1.1 413 Request too large\r\n\r\nThe request was too large"));
 
@@ -82,13 +88,65 @@ void OpenThingsFramework::localServerLoop() {
       return;
     }
 
-    size_t read = wifiClient.readBytes(&buffer[length], min((int) (REQUEST_BUFFER_SIZE - length), 1024));
+    if (timeout <= 0) {
+      Serial.println(F("Request timed out"));
+      // Get a new client to indicate that the previous client is no longer needed.
+      wifiClient = server.available();
+      return;
+    }
+
+    size_t read = wifiClient.readBytesUntil('\n', &buffer[length], min((int) (HEADERS_BUFFER_SIZE - length - 1), 1024));
     length += read;
+    buffer[length++] = '\n';
+    UPDATE_TIMEOUT
+
+    if (wifiClient.peek() == '\r') {
+      UPDATE_TIMEOUT
+      // Try to read the second sequential CRLF that marks the beginning of the request body.
+      read = wifiClient.readBytesUntil('\n', &buffer[length], min((int) (HEADERS_BUFFER_SIZE - length - 1), 2));
+      length += read;
+      buffer[length++] = '\n';
+      UPDATE_TIMEOUT
+      // If exactly 2 characters were read, assume the first one was '\n' and that the end of the headers has been reached.
+      if (read == 2) {
+        break;
+      }
+    }
   }
-  Serial.printf((char *) F("Finished reading data from client. Message was %d bytes\n"), length);
+  Serial.printf((char *) F("Finished reading data from client. Request line + headers were %d bytes\n"), length);
+
+  // Make sure that the headers were fully read into the buffer.
+  if (strncmp_P(&buffer[length - 4], (char *) F("\r\n\r\n"), 4) != 0) {
+    Serial.println(F("The request headers were not fully read into the buffer."));
+    wifiClient.print(F("HTTP/1.1 413 Request too large\r\n\r\nThe request was too large"));
+    return;
+  }
 
   Serial.println(F("Parsing request"));
   Request request(buffer, length);
+
+  // If the request was valid, read the body and add it to the Request object.
+  if (request.getType() > INVALID) {
+    char *contentLengthString = request.getHeader(F("content-length"));
+    // If the header was not specified, the message has no body.
+    if (contentLengthString != nullptr) {
+      long contentLength = String(contentLengthString).toInt();
+      // If the header specifies a length of 0 or could not be parsed, the message has no body.
+      if (contentLength > 0) {
+        // Read the body from the client.
+        char bodyBuffer[contentLength];
+        size_t bodyLength = 0;
+        while (wifiClient.available()) {
+          UPDATE_TIMEOUT
+          size_t read = wifiClient.readBytes(&bodyBuffer[bodyLength], min((int) (contentLength - bodyLength), 1024));
+          bodyLength += read;
+        }
+
+        request.body = &bodyBuffer[0];
+        request.bodyLength = bodyLength;
+      }
+    }
+  }
 
   Serial.println(F("Filling response"));
   Response res = Response();
