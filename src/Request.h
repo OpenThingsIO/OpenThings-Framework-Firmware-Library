@@ -55,6 +55,12 @@ namespace OTF {
          */
         bool parseHeader(char *str, size_t length, size_t &index, LinkedMap<char *> &headers);
 
+        /**
+         * Decodes the specified query string, updating and null-terminating the string in-place.
+         * @param value a null-terminated query value.
+         */
+        static void decodeQueryParameter(char *value);
+
     public:
 
         /** Returns the path of the request (not including the query) as a null-terminated string. */

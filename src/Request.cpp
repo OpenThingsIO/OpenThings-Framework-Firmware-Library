@@ -175,6 +175,7 @@ char Request::parseQuery(char *str, size_t length, size_t &index) {
           value = &str[index];
         }
 
+        decodeQueryParameter(value);
         Serial.printf((char *) F("Found query parameter '%s' with value '%s'.\n"), key, value);
 
         queryParams.add(key, value);
@@ -254,6 +255,33 @@ bool Request::parseHeader(char *str, size_t length, size_t &index, LinkedMap<cha
       str[index] = tolower(str[index]);
     }
   }
+}
+
+void Request::decodeQueryParameter(char *value) {
+  unsigned int offset = 0;
+  unsigned int index = 0;
+  while (value[index + offset] != '\0') {
+    Serial.printf((char *) F("Index is %d and offset is %d\n"), index, offset);
+    char character = value[index + offset];
+    if (character == '+') {
+      character = ' ';
+    } else if (character == '%') {
+      char highDigit = value[index + ++offset];
+      char lowDigit = value[index + ++offset];
+      if (highDigit == '\0' || lowDigit == '\0') {
+        // Abort decoding because the query string is illegally formatted.
+        return;
+      }
+
+      char hex[3] = {highDigit, lowDigit, '\0'};
+      character = strtol(hex, nullptr, 16);
+    }
+
+    value[index] = character;
+
+    index++;
+  }
+  value[index] = '\0';
 }
 
 char *Request::getPath() const { return path; }
