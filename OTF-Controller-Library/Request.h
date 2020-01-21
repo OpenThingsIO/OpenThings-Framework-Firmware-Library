@@ -66,10 +66,10 @@ namespace OTF {
         /** Returns the path of the request (not including the query) as a null-terminated string. */
         char *getPath() const;
 
-        /** Returns the value of the specified query parameter as a null-terminated string, or NULL if the parameter was not set in the request. */
+        /** Returns the decoded value of the specified query parameter as a null-terminated string, or NULL if the parameter was not set in the request. */
         char *getQueryParameter(const char *key) const;
 
-        /** Returns the value of the specified query parameter as a null-terminated string, or NULL if the parameter was not set in the request. */
+        /** Returns the decoded value of the specified query parameter as a null-terminated string, or NULL if the parameter was not set in the request. */
         char *getQueryParameter(const __FlashStringHelper *key) const;
 
         /**
