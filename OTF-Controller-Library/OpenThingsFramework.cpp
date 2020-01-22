@@ -15,25 +15,28 @@
 
 using namespace OTF;
 
-OpenThingsFramework::OpenThingsFramework(uint16_t webServerPort, const String &webSocketHost, uint16_t webSocketPort,
-                                         const String &deviceKey) : server(webServerPort) {
+OpenThingsFramework::OpenThingsFramework(uint16_t webServerPort) : server(webServerPort) {
   Serial.println("Instantiating OTF...");
   missingPageCallback = defaultMissingPageCallback;
   server.begin();
   wifiClient = server.available();
+};
 
+OpenThingsFramework::OpenThingsFramework(uint16_t webServerPort, const String &webSocketHost, uint16_t webSocketPort,
+                                         const String &deviceKey): OpenThingsFramework(webServerPort) {
   Serial.println(F("Initializing websocket..."));
-  webSocket.begin(webSocketHost, webSocketPort, "/socket/v1?deviceKey=" + deviceKey);
+  webSocket = new WebSocketsClient();
+  webSocket->begin(webSocketHost, webSocketPort, "/socket/v1?deviceKey=" + deviceKey);
   Serial.println(F("Initialized websocket"));
 
   // Wrap the member function in a static function.
-  webSocket.onEvent([this](WStype_t type, uint8_t *payload, size_t length) -> void {
+  webSocket->onEvent([this](WStype_t type, uint8_t *payload, size_t length) -> void {
       webSocketCallback(type, payload, length);
   });
 
-  webSocket.setReconnectInterval(WEBSOCKET_RECONNECT_INTERVAL);
+  webSocket->setReconnectInterval(WEBSOCKET_RECONNECT_INTERVAL);
   // Ping the server every 15 seconds with a timeout of 5 seconds, and treat 1 missed ping as a lost connection.
-  webSocket.enableHeartbeat(15000, 5000, 1);
+  webSocket->enableHeartbeat(15000, 5000, 1);
 }
 
 char *makeMapKey(StringBuilder *sb, HTTPMethod method, const char *path) {
@@ -170,7 +173,9 @@ void OpenThingsFramework::localServerLoop() {
 
 void OpenThingsFramework::loop() {
   localServerLoop();
-  webSocket.loop();
+  if (webSocket != nullptr) {
+    webSocket->loop();
+  }
 }
 
 void OpenThingsFramework::webSocketCallback(WStype_t type, uint8_t *payload, size_t length) {
@@ -201,7 +206,7 @@ void OpenThingsFramework::webSocketCallback(WStype_t type, uint8_t *payload, siz
         fillResponse(request, res);
 
         if (res.isValid()) {
-          webSocket.sendTXT(res.toString(), res.getLength());
+          webSocket->sendTXT(res.toString(), res.getLength());
         } else {
           Serial.println(F("An error occurred building response string"));
           StringBuilder builder(100);

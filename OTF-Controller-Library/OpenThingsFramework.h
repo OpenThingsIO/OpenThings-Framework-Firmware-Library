@@ -15,7 +15,7 @@ namespace OTF {
     private:
         WiFiServer server;
         WiFiClient wifiClient;
-        WebSocketsClient webSocket;
+        WebSocketsClient *webSocket = nullptr;
         LinkedMap<callback_t> callbacks;
         callback_t missingPageCallback;
 
@@ -27,6 +27,19 @@ namespace OTF {
         static void defaultMissingPageCallback(const Request &req, Response &res);
 
     public:
+        /**
+         * Initializes the library to only listen on a local webserver.
+         * @param webServerPort The local port to bind the webserver to.
+         */
+        OpenThingsFramework(uint16_t webServerPort);
+
+        /**
+         * Initializes the library to listen on a local webserver and connect to a remote websocket.
+         * @param webServerPort The local port to bind the webserver to.
+         * @param webSocketHost The host of the remote websocket.
+         * @param webSocketPort The port of the remote websocket.
+         * @param deviceKey The unique device key that identifies this device.
+         */
         OpenThingsFramework(uint16_t webServerPort, const String &webSocketHost, uint16_t webSocketPort,
                             const String &deviceKey);
 
