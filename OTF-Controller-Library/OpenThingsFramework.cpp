@@ -26,7 +26,7 @@ OpenThingsFramework::OpenThingsFramework(uint16_t webServerPort, const String &w
                                          const String &deviceKey): OpenThingsFramework(webServerPort) {
   Serial.println(F("Initializing websocket..."));
   webSocket = new WebSocketsClient();
-  webSocket->begin(webSocketHost, webSocketPort, "/socket/v1?deviceKey=" + deviceKey);
+  webSocket->beginSSL(webSocketHost, webSocketPort, "/socket/v1?deviceKey=" + deviceKey);
   Serial.println(F("Initialized websocket"));
 
   // Wrap the member function in a static function.
