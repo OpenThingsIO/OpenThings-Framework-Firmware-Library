@@ -39,7 +39,7 @@ void missingPage(const OTF::Request &req, OTF::Response &res) {
 }
 
 void setup() {
-  Serial.begin(74880);
+  Serial.begin(115200);
   WiFi.mode(WIFI_STA);
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
 
