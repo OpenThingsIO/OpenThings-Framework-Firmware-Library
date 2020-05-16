@@ -23,10 +23,16 @@ OpenThingsFramework::OpenThingsFramework(uint16_t webServerPort) : server(webSer
 };
 
 OpenThingsFramework::OpenThingsFramework(uint16_t webServerPort, const String &webSocketHost, uint16_t webSocketPort,
-                                         const String &deviceKey): OpenThingsFramework(webServerPort) {
+                                         const String &deviceKey, bool useSsl): OpenThingsFramework(webServerPort) {
   Serial.println(F("Initializing websocket..."));
   webSocket = new WebSocketsClient();
-  webSocket->beginSSL(webSocketHost, webSocketPort, "/socket/v1?deviceKey=" + deviceKey);
+  if (useSsl) {
+    Serial.println(F("Connecting to websocket with SSL"));
+    webSocket->beginSSL(webSocketHost, webSocketPort, "/socket/v1?deviceKey=" + deviceKey);
+  } else {
+    Serial.println(F("Connecting to websocket without SSL"));
+    webSocket->begin(webSocketHost, webSocketPort, "/socket/v1?deviceKey=" + deviceKey);
+  }
   Serial.println(F("Initialized websocket"));
 
   // Wrap the member function in a static function.

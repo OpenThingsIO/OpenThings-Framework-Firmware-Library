@@ -39,9 +39,10 @@ namespace OTF {
          * @param webSocketHost The host of the remote websocket.
          * @param webSocketPort The port of the remote websocket.
          * @param deviceKey The unique device key that identifies this device.
+         * @param useSsl Indicates if SSL should be used when connecting to the websocket.
          */
         OpenThingsFramework(uint16_t webServerPort, const String &webSocketHost, uint16_t webSocketPort,
-                            const String &deviceKey);
+                            const String &deviceKey, bool useSsl);
 
         /**
          * Registers a callback function to run when a request is made to the specified path. The callback function will
