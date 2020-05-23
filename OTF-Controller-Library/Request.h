@@ -22,13 +22,14 @@ namespace OTF {
         char *body = nullptr;
         size_t bodyLength = 0;
         RequestType requestType = INVALID;
+        bool cloudRequest;
 
         /**
          * Parses an HTTP request. The parser makes some assumptions about the message format that may not hold if the
          * message is improperly formatted, so the behavior of this constructor is undefined if it is passed an improperly
          * formatted request.
          */
-        Request(char *str, size_t length);
+        Request(char *str, size_t length, bool cloudRequest);
 
         /**
          * Parses the query of the request.
@@ -95,6 +96,13 @@ namespace OTF {
 
         /** Indicates if this request is a multipart request, a non-multipart request, or an illegally formatted request. */
         RequestType getType() const;
+
+        /**
+         * Indicates if the request came through the cloud rather than through the local server. If this returns `true`,
+         * it means that the request has already been authenticated by an OpenThings Cloud token.
+         */
+
+        bool isCloudRequest() const;
     };
 }
 #endif

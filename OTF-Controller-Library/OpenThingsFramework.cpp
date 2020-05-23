@@ -132,7 +132,7 @@ void OpenThingsFramework::localServerLoop() {
   }
 
   Serial.println(F("Parsing request"));
-  Request request(buffer, length);
+  Request request(buffer, length, false);
 
   // If the request was valid, read the body and add it to the Request object.
   if (request.getType() > INVALID) {
@@ -206,7 +206,7 @@ void OpenThingsFramework::webSocketCallback(WStype_t type, uint8_t *payload, siz
         // Replace the assumed carriage return with a null character to terminate the ID string.
         requestId[ID_LENGTH] = '\0';
 
-        Request request(&message[HEADER_LENGTH], length - HEADER_LENGTH);
+        Request request(&message[HEADER_LENGTH], length - HEADER_LENGTH, true);
         Response res = Response();
         res.bprintf(F("RES: %s\r\n"), requestId);
         fillResponse(request, res);

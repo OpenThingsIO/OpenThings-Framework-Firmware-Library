@@ -5,7 +5,7 @@
 using namespace OTF;
 
 // Find the pointers of substrings within the HTTP request and turns them into null-terminated C strings.
-Request::Request(char *str, size_t length) {
+Request::Request(char *str, size_t length, bool cloudRequest) {
   size_t index = 0;
 
   // Parse the HTTP method.
@@ -299,3 +299,5 @@ char *Request::getBody() const { return body; }
 size_t Request::getBodyLength() const { return bodyLength; }
 
 RequestType Request::getType() const { return requestType; }
+
+bool Request::isCloudRequest() const { return cloudRequest; }
