@@ -49,7 +49,7 @@ void setup() {
   }
   Serial.println("Connected");
 
-  otf = new OTF::OpenThingsFramework(80, WEBSOCKET_HOST, WEBSOCKET_PORT, DEVICE_KEY);
+  otf = new OTF::OpenThingsFramework(80, WEBSOCKET_HOST, WEBSOCKET_PORT, DEVICE_KEY, false);
   Serial.println("Created OTF object");
 
   otf->on(F("/uptime"), uptime);
