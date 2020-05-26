@@ -1,7 +1,4 @@
-#include "LinkedMap.h"
 #include "Response.h"
-
-#include <Arduino.h>
 
 using namespace OTF;
 

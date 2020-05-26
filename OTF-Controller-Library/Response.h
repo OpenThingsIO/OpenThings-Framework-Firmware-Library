@@ -1,8 +1,6 @@
 #ifndef OTF_RESPONSE_H
 #define OTF_RESPONSE_H
 
-#include "LinkedMap.h"
-#include "Response.h"
 #include "StringBuilder.h"
 
 #include <Arduino.h>

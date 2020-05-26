@@ -1,7 +1,5 @@
 #include "Request.h"
 
-#include <Arduino.h>
-
 using namespace OTF;
 
 // Find the pointers of substrings within the HTTP request and turns them into null-terminated C strings.

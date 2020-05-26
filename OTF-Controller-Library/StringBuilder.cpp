@@ -1,7 +1,5 @@
 #include "StringBuilder.h"
 
-#include <Arduino.h>
-
 using namespace OTF;
 
 StringBuilder::StringBuilder(size_t maxLength) {
