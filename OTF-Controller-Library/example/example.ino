@@ -4,11 +4,6 @@
 #include <Arduino.h>
 #include <WiFiServer.h>
 
-extern "C" {
-  #include "user_interface.h"
-};
-
-
 OTF::OpenThingsFramework *otf = nullptr;
 
 void uptime(const OTF::Request &req, OTF::Response &res) {
@@ -21,7 +16,7 @@ void uptime(const OTF::Request &req, OTF::Response &res) {
 void memoryUsage(const OTF::Request &req, OTF::Response &res) {
   res.writeStatus(200, "OK");
   res.writeHeader(F("content-type"), F("text/plain"));
-  res.writeBodyChunk(F("The free heap size is %d bytes"), system_get_free_heap_size());
+  res.writeBodyChunk(F("The free heap size is %d bytes"), ESP.getFreeHeap());
 }
 
 void logMessage(const OTF::Request &req, OTF::Response &res) {

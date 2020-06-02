@@ -4,17 +4,26 @@
 #include "Request.h"
 #include "Response.h"
 
-#include <Arduino.h>
-#include <ESP8266WiFi.h>
 #include <WebSocketsClient.h>
+#include <Arduino.h>
+
+#if defined(ESP8266)
+#include "Esp8266LocalServer.h"
+#define LOCAL_SERVER_CLASS Esp8266LocalServer
+#endif
+
+#if defined(ESP32)
+#include "Esp32LocalServer.h"
+#define LOCAL_SERVER_CLASS Esp32LocalServer
+#endif
 
 namespace OTF {
     typedef void (*callback_t)(const Request &request, Response &response);
 
     class OpenThingsFramework {
     private:
-        WiFiServer server;
-        WiFiClient wifiClient;
+        LOCAL_SERVER_CLASS localServer = LOCAL_SERVER_CLASS(80);
+        LocalClient *localClient = nullptr;
         WebSocketsClient *webSocket = nullptr;
         LinkedMap<callback_t> callbacks;
         callback_t missingPageCallback;

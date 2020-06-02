@@ -15,11 +15,10 @@
 
 using namespace OTF;
 
-OpenThingsFramework::OpenThingsFramework(uint16_t webServerPort) : server(webServerPort) {
+OpenThingsFramework::OpenThingsFramework(uint16_t webServerPort) : localServer(webServerPort) {
   Serial.println("Instantiating OTF...");
   missingPageCallback = defaultMissingPageCallback;
-  server.begin();
-  wifiClient = server.available();
+  localServer.begin();
 };
 
 OpenThingsFramework::OpenThingsFramework(uint16_t webServerPort, const String &webSocketHost, uint16_t webSocketPort,
@@ -63,19 +62,19 @@ void OpenThingsFramework::onMissingPage(callback_t callback) {
 }
 
 void OpenThingsFramework::localServerLoop() {
-  if (!wifiClient) {
+  if (!localClient) {
     // If there isn't currently a pending client, check if one is available.
-    wifiClient = server.available();
+    localClient = localServer.acceptClient();
 
     // If a client wasn't available from the server, exit the local server loop.
-    if (!wifiClient) {
+    if (!localClient) {
       return;
     }
 
-    wifiClient.setTimeout(WIFI_CONNECTION_TIMEOUT);
+    localClient->setTimeout(WIFI_CONNECTION_TIMEOUT);
   }
 
-  if (!wifiClient.available()) {
+  if (!localClient->dataAvailable()) {
     // If data isn't available from the client yet, exit the local server loop and check again next iteration.
     return;
   }
@@ -83,36 +82,36 @@ void OpenThingsFramework::localServerLoop() {
   // Update the timeout for each data read to ensure that the total timeout is WIFI_CONNECTION_TIMEOUT.
   unsigned int timeout = WIFI_CONNECTION_TIMEOUT;
   unsigned long lastTime = millis();
-#define UPDATE_TIMEOUT {unsigned long diff = millis() - lastTime; if (diff >= timeout) { timeout = 0; continue; } timeout -= diff; wifiClient.setTimeout(timeout);}
+#define UPDATE_TIMEOUT {unsigned long diff = millis() - lastTime; if (diff >= timeout) { timeout = 0; continue; } timeout -= diff; localClient->setTimeout(timeout);}
 
   char buffer[HEADERS_BUFFER_SIZE];
   size_t length = 0;
-  while (wifiClient.available()) {
+  while (localClient->dataAvailable()) {
     if (length >= HEADERS_BUFFER_SIZE) {
       Serial.println(F("Request buffer is full, aborting"));
-      wifiClient.print(F("HTTP/1.1 413 Request too large\r\n\r\nThe request was too large"));
+      localClient->print(F("HTTP/1.1 413 Request too large\r\n\r\nThe request was too large"));
 
       // Get a new client to indicate that the previous client is no longer needed.
-      wifiClient = server.available();
+      localClient = localServer.acceptClient();
       return;
     }
 
     if (timeout <= 0) {
       Serial.println(F("Request timed out"));
       // Get a new client to indicate that the previous client is no longer needed.
-      wifiClient = server.available();
+      localClient = localServer.acceptClient();
       return;
     }
 
-    size_t read = wifiClient.readBytesUntil('\n', &buffer[length], min((int) (HEADERS_BUFFER_SIZE - length - 1), 1024));
+    size_t read = localClient->readBytesUntil('\n', &buffer[length], min((int) (HEADERS_BUFFER_SIZE - length - 1), 1024));
     length += read;
     buffer[length++] = '\n';
     UPDATE_TIMEOUT
 
-    if (wifiClient.peek() == '\r') {
+    if (localClient->peek() == '\r') {
       UPDATE_TIMEOUT
       // Try to read the second sequential CRLF that marks the beginning of the request body.
-      read = wifiClient.readBytesUntil('\n', &buffer[length], min((int) (HEADERS_BUFFER_SIZE - length - 1), 2));
+      read = localClient->readBytesUntil('\n', &buffer[length], min((int) (HEADERS_BUFFER_SIZE - length - 1), 2));
       length += read;
       buffer[length++] = '\n';
       UPDATE_TIMEOUT
@@ -127,7 +126,7 @@ void OpenThingsFramework::localServerLoop() {
   // Make sure that the headers were fully read into the buffer.
   if (strncmp_P(&buffer[length - 4], (char *) F("\r\n\r\n"), 4) != 0) {
     Serial.println(F("The request headers were not fully read into the buffer."));
-    wifiClient.print(F("HTTP/1.1 413 Request too large\r\n\r\nThe request was too large"));
+    localClient->print(F("HTTP/1.1 413 Request too large\r\n\r\nThe request was too large"));
     return;
   }
 
@@ -145,9 +144,9 @@ void OpenThingsFramework::localServerLoop() {
         // Read the body from the client.
         char bodyBuffer[contentLength];
         size_t bodyLength = 0;
-        while (wifiClient.available()) {
+        while (localClient->dataAvailable()) {
           UPDATE_TIMEOUT
-          size_t read = wifiClient.readBytes(&bodyBuffer[bodyLength], min((int) (contentLength - bodyLength), 1024));
+          size_t read = localClient->readBytes(&bodyBuffer[bodyLength], min((int) (contentLength - bodyLength), 1024));
           bodyLength += read;
         }
 
@@ -165,14 +164,14 @@ void OpenThingsFramework::localServerLoop() {
   if (res.isValid()) {
     char *responseString = res.toString();
     Serial.printf((char *) F("Response message is: %s\n"), responseString);
-    wifiClient.print(responseString);
+    localClient->print(responseString);
   } else {
-    wifiClient.print(F("HTTP/1.1 500 OTF error\r\nResponse string could not be built\r\n"));
+    localClient->print(F("HTTP/1.1 500 OTF error\r\nResponse string could not be built\r\n"));
     Serial.println(F("An error occurred while building the response string."));
   }
 
   // Get a new client to indicate that the previous client is no longer needed.
-  wifiClient = server.available();
+  localClient = localServer.acceptClient();
 
   Serial.println(F("Finished handling request"));
 }
