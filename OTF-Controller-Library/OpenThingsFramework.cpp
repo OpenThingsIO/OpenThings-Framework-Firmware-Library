@@ -22,7 +22,7 @@ OpenThingsFramework::OpenThingsFramework(uint16_t webServerPort) : localServer(w
 };
 
 OpenThingsFramework::OpenThingsFramework(uint16_t webServerPort, const String &webSocketHost, uint16_t webSocketPort,
-                                         const String &deviceKey, bool useSsl): OpenThingsFramework(webServerPort) {
+                                         const String &deviceKey, bool useSsl) : OpenThingsFramework(webServerPort) {
   Serial.println(F("Initializing websocket..."));
   webSocket = new WebSocketsClient();
   if (useSsl) {
@@ -36,7 +36,7 @@ OpenThingsFramework::OpenThingsFramework(uint16_t webServerPort, const String &w
 
   // Wrap the member function in a static function.
   webSocket->onEvent([this](WStype_t type, uint8_t *payload, size_t length) -> void {
-      webSocketCallback(type, payload, length);
+    webSocketCallback(type, payload, length);
   });
 
   webSocket->setReconnectInterval(WEBSOCKET_RECONNECT_INTERVAL);
@@ -82,7 +82,16 @@ void OpenThingsFramework::localServerLoop() {
   // Update the timeout for each data read to ensure that the total timeout is WIFI_CONNECTION_TIMEOUT.
   unsigned int timeout = WIFI_CONNECTION_TIMEOUT;
   unsigned long lastTime = millis();
-#define UPDATE_TIMEOUT {unsigned long diff = millis() - lastTime; if (diff >= timeout) { timeout = 0; continue; } timeout -= diff; localClient->setTimeout(timeout);}
+#define UPDATE_TIMEOUT                        \
+  {                                           \
+    unsigned long diff = millis() - lastTime; \
+    if (diff >= timeout) {                    \
+      timeout = 0;                            \
+      continue;                               \
+    }                                         \
+    timeout -= diff;                          \
+    localClient->setTimeout(timeout);         \
+  }
 
   char buffer[HEADERS_BUFFER_SIZE];
   size_t length = 0;

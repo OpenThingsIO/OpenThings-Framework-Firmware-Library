@@ -8,9 +8,10 @@ OTF::OpenThingsFramework *otf = nullptr;
 
 void uptime(const OTF::Request &req, OTF::Response &res) {
   res.writeStatus(200, "OK");
-  res.writeHeader(F("content-type"),F("text/plain"));
+  res.writeHeader(F("content-type"), F("text/plain"));
   bool useMicros = req.getQueryParameter(F("useMicros")) != nullptr;
-  res.writeBodyChunk(F("The server has been up for %d %s"), useMicros ? micros() : millis(), useMicros ? F("microseconds") : F("milliseconds"));
+  const __FlashStringHelper *units = useMicros ? F("microseconds") : F("milliseconds");
+  res.writeBodyChunk(F("The server has been up for %d %s"), useMicros ? micros() : millis(), units);
 }
 
 void memoryUsage(const OTF::Request &req, OTF::Response &res) {
@@ -23,7 +24,7 @@ void logMessage(const OTF::Request &req, OTF::Response &res) {
   std::string body = std::string(req.getBody(), req.getBodyLength());
   Serial.println(body.c_str());
   res.writeStatus(200, "OK");
-  res.writeHeader(F("content-type"),F("text/plain"));
+  res.writeHeader(F("content-type"), F("text/plain"));
   res.writeBodyChunk(F("The message has been logged to the serial monitor"));
 }
 
