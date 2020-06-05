@@ -23,6 +23,7 @@ OpenThingsFramework::OpenThingsFramework(uint16_t webServerPort) : localServer(w
 
 OpenThingsFramework::OpenThingsFramework(uint16_t webServerPort, const String &webSocketHost, uint16_t webSocketPort,
                                          const String &deviceKey, bool useSsl) : OpenThingsFramework(webServerPort) {
+  setCloudStatus(UNABLE_TO_CONNECT);
   Serial.println(F("Initializing websocket..."));
   webSocket = new WebSocketsClient();
   if (useSsl) {
@@ -196,9 +197,15 @@ void OpenThingsFramework::webSocketCallback(WStype_t type, uint8_t *payload, siz
   switch (type) {
     case WStype_DISCONNECTED:
       Serial.println(F("Disconnected from websocket"));
+      /* A failed attempt to connect will also fire a WStype_DISCONNECTED event, so this check is
+       * needed to prevent the UNABLE_TO_CONNECT status to be overwritten. */
+      if (cloudStatus == CONNECTED) {
+        setCloudStatus(DISCONNECTED);
+      }
       break;
     case WStype_CONNECTED:
       Serial.println(F("Connected to websocket"));
+      setCloudStatus(CONNECTED);
       break;
     case WStype_TEXT: {
       Serial.printf((char *) F("Received a websocket message of length %d\n"), length);
@@ -286,4 +293,17 @@ void OpenThingsFramework::defaultMissingPageCallback(const Request &req, Respons
   res.writeStatus(404, F("Not found"));
   res.writeHeader(F("content-type"), F("text/plain"));
   res.writeBodyChunk(F("The requested page does not exist"));
+}
+
+void OpenThingsFramework::setCloudStatus(CLOUD_STATUS status) {
+  this->cloudStatus = status;
+  lastCloudStatusChangeTime = millis();
+}
+
+CLOUD_STATUS OpenThingsFramework::getCloudStatus() {
+  return cloudStatus;
+}
+
+unsigned long OpenThingsFramework::getTimeSinceLastCloudStatusChange() {
+  return millis() - lastCloudStatusChangeTime;
 }

@@ -20,6 +20,17 @@
 namespace OTF {
   typedef void (*callback_t)(const Request &request, Response &response);
 
+  enum CLOUD_STATUS {
+    /** Indicates that an OTC token was not specified on initialization. */
+    NOT_ENABLED,
+    /** Indicates that the device was never able to connect to the server. */
+    UNABLE_TO_CONNECT,
+    /** Indicates that the device was previously connected to the server, but got disconnected and has been unable to reconnect. */
+    DISCONNECTED,
+    /** Indicates that the device is currently connected to the server. */
+    CONNECTED
+  };
+
   class OpenThingsFramework {
   private:
     LOCAL_SERVER_CLASS localServer = LOCAL_SERVER_CLASS(80);
@@ -27,11 +38,14 @@ namespace OTF {
     WebSocketsClient *webSocket = nullptr;
     LinkedMap<callback_t> callbacks;
     callback_t missingPageCallback;
+    CLOUD_STATUS cloudStatus = NOT_ENABLED;
+    unsigned long lastCloudStatusChangeTime = millis();
 
     void webSocketCallback(WStype_t type, uint8_t *payload, size_t length);
 
     void fillResponse(const Request &req, Response &res);
     void localServerLoop();
+    void setCloudStatus(CLOUD_STATUS status);
 
     static void defaultMissingPageCallback(const Request &req, Response &res);
 
@@ -73,6 +87,12 @@ namespace OTF {
     void onMissingPage(callback_t callback);
 
     void loop();
+
+    /** Returns the current status of the connection to the OpenThings Cloud server. */
+    CLOUD_STATUS getCloudStatus();
+
+    /** Returns the number of milliseconds since there was last a change in the cloud status. */
+    unsigned long getTimeSinceLastCloudStatusChange();
   };
 }// namespace OTF
 
