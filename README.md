@@ -1,4 +1,4 @@
-## OpenThings Framework Controller Library
+## OpenThings Framework - Controller Library
 
 This library provides a single interface that can be used to handle HTTP requests made directly to the controller or forwarded to the controller via a websocket.
 
