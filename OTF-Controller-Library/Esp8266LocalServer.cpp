@@ -55,4 +55,13 @@ int Esp8266LocalClient::peek() {
 void Esp8266LocalClient::setTimeout(int timeout) {
   client.setTimeout(timeout);
 }
+
+void Esp8266LocalClient::flush() {
+	client.flush();
+}
+
+void Esp8266LocalClient::stop() {
+	client.stop();
+}
+
 #endif

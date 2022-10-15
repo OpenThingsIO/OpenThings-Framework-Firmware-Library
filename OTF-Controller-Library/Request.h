@@ -1,6 +1,13 @@
 #ifndef OTF_REQUEST_H
 #define OTF_REQUEST_H
 
+//#define SERIAL_DEBUG
+#ifdef SERIAL_DEBUG
+#define DEBUG(x) x
+#else
+#define DEBUG(x) 
+#endif
+
 #include "LinkedMap.h"
 
 #include <Arduino.h>

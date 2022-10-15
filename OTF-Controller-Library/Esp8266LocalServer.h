@@ -23,6 +23,8 @@ namespace OTF {
     void print(const __FlashStringHelper *data);
     int peek();
     void setTimeout(int timeout);
+    void flush();
+    void stop();
   };
 
 

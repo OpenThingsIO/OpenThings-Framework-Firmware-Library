@@ -2,7 +2,7 @@
 
 using namespace OTF;
 
-void Response::writeStatus(uint16_t statusCode, const std::string &statusMessage) {
+void Response::writeStatus(uint16_t statusCode, const String &statusMessage) {
   if (responseStatus > CREATED) {
     valid = false;
     return;
@@ -32,7 +32,7 @@ void Response::writeStatus(uint16_t statusCode) {
   writeStatus(statusCode, F("No message"));
 }
 
-void Response::writeHeader(char *const name, char *const value) {
+/*void Response::writeHeader(char *const name, char *const value) {
   if (responseStatus < STATUS_WRITTEN || responseStatus > HEADERS_WRITTEN) {
     valid = false;
     return;
@@ -50,6 +50,16 @@ void Response::writeHeader(const __FlashStringHelper *const name, char *const va
   responseStatus = HEADERS_WRITTEN;
 
   bprintf(F("%s: %s\r\n"), name, value);
+}*/
+
+void Response::writeHeader(const __FlashStringHelper *const name, int value) {
+  if (responseStatus < STATUS_WRITTEN || responseStatus > HEADERS_WRITTEN) {
+    valid = false;
+    return;
+  }
+  responseStatus = HEADERS_WRITTEN;
+
+  bprintf(F("%s: %d\r\n"), name, value);
 }
 
 void Response::writeHeader(const __FlashStringHelper *const name, const __FlashStringHelper *const value) {

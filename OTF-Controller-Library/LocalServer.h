@@ -32,6 +32,9 @@ namespace OTF {
 
     /** Sets the maximum number of milliseconds to wait for data to be available when readBytes() is called. */
     virtual void setTimeout(int timeout) = 0;
+    
+    virtual void flush() = 0;
+    virtual void stop() = 0;
   };
 
   class LocalServer {

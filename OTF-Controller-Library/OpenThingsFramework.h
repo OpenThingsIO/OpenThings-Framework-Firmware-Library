@@ -18,8 +18,7 @@
 #endif
 
 namespace OTF {
-  typedef std::function<void(const Request &request, Response &response)> callback_t;
-  
+  typedef void (*callback_t)(const Request &request, Response &response);
 
   enum CLOUD_STATUS {
     /** Indicates that an OTC token was not specified on initialization. */

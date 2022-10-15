@@ -6,7 +6,7 @@
 #include <Arduino.h>
 
 // The maximum possible size of response messages.
-#define RESPONSE_BUFFER_SIZE 16384
+#define RESPONSE_BUFFER_SIZE 18000
 
 namespace OTF {
 
@@ -29,7 +29,7 @@ namespace OTF {
     static const size_t MAX_RESPONSE_LENGTH = RESPONSE_BUFFER_SIZE;
 
     /** Writes the status code/message to the response. This must be called before writing the headers or body. */
-    void writeStatus(uint16_t statusCode, const std::string &statusMessage);
+    void writeStatus(uint16_t statusCode, const String &statusMessage);
 
     /** Writes the status code/message to the response. This must be called before writing the headers or body. */
     void writeStatus(uint16_t statusCode, const __FlashStringHelper *const statusMessage);
@@ -41,11 +41,13 @@ namespace OTF {
      * multiple times to create a list. This function must not be called before the status has been written or after
      * the body has been written.
      */
-    void writeHeader(char *const name, char *const value);
+    //void writeHeader(char *const name, char *const value);
 
-    void writeHeader(const __FlashStringHelper *const name, char *const value);
+    //void writeHeader(const __FlashStringHelper *const name, char *const value);
 
     void writeHeader(const __FlashStringHelper *const name, const __FlashStringHelper *const value);
+    
+    void writeHeader(const __FlashStringHelper *const name, int value);
 
     /**
      * Calls sprintf to write a chunk of data to the response body. This method may only be called after any desired

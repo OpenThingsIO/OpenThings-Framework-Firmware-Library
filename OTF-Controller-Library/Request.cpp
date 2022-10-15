@@ -8,7 +8,7 @@ Request::Request(char *str, size_t length, bool cloudRequest) {
   size_t index = 0;
 
   // Parse the HTTP method.
-  Serial.println(F("Parsing HTTP method"));
+  DEBUG(Serial.println(F("Parsing HTTP method"));)
   for (; index < length; index++) {
     if (str[index] == '\0') {
       // Reject any requests that contain null characters outside of the body to prevent null byte poisoning attacks.
@@ -44,7 +44,7 @@ Request::Request(char *str, size_t length, bool cloudRequest) {
   } else if (strcmp("PATCH", &str[0]) == 0) {
     this->httpMethod = HTTP_PATCH;
   } else {
-    Serial.println(F("Could not match HTTP method"));
+    DEBUG(Serial.println(F("Could not match HTTP method"));)
     // Error if the method isn't a standard method.
     requestType = INVALID;
     return;
@@ -53,7 +53,7 @@ Request::Request(char *str, size_t length, bool cloudRequest) {
 
   char character = str[index];
   // TODO handle cases where target isn't always a root path? (https://tools.ietf.org/html/rfc7230#section-5.3.1)
-  Serial.println(F("Parsing the request target."));
+  DEBUG(Serial.println(F("Parsing the request target."));)
   // Parse the target.
   this->path = &str[index];
   // Skip over the path.
@@ -98,7 +98,7 @@ Request::Request(char *str, size_t length, bool cloudRequest) {
     }
   }
 
-  Serial.println(F("Finished parsing request target."));
+  DEBUG(Serial.println(F("Finished parsing request target."));)
   // Move to the first character in the HTTP version.
   index++;
 
@@ -150,7 +150,7 @@ Request::Request(char *str, size_t length, bool cloudRequest) {
 }
 
 char Request::parseQuery(char *str, size_t length, size_t &index) {
-  Serial.println(F("Starting to parse query."));
+  DEBUG(Serial.println(F("Starting to parse query."));)
   while (index < length) {
     char *key = &str[index];
     char *value = nullptr;
@@ -175,7 +175,7 @@ char Request::parseQuery(char *str, size_t length, size_t &index) {
         }
 
         decodeQueryParameter(value);
-        Serial.printf((char *) F("Found query parameter '%s' with value '%s'.\n"), key, value);
+        DEBUG(Serial.printf((char *) F("Found query parameter '%s' with value '%s'.\n"), key, value);)
 
         queryParams.add(key, value);
 
@@ -239,7 +239,7 @@ bool Request::parseHeader(char *str, size_t length, size_t &index, LinkedMap<cha
         }
       }
 
-      Serial.printf((char *) F("Found header '%s' with value '%s'.\n"), lineStart, value);
+      DEBUG(Serial.printf((char *) F("Found header '%s' with value '%s'.\n"), lineStart, value);)
       // TODO handle duplicate header fields by concatenating them with a comma.
       headers.add(lineStart, value);
 
@@ -254,13 +254,14 @@ bool Request::parseHeader(char *str, size_t length, size_t &index, LinkedMap<cha
       str[index] = tolower(str[index]);
     }
   }
+  return true;
 }
 
 void Request::decodeQueryParameter(char *value) {
   unsigned int offset = 0;
   unsigned int index = 0;
   while (value[index + offset] != '\0') {
-    Serial.printf((char *) F("Index is %d and offset is %d\n"), index, offset);
+    DEBUG(Serial.printf((char *) F("Index is %d and offset is %d\n"), index, offset);)
     char character = value[index + offset];
     if (character == '+') {
       character = ' ';

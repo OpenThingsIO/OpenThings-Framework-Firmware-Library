@@ -16,7 +16,7 @@
 using namespace OTF;
 
 OpenThingsFramework::OpenThingsFramework(uint16_t webServerPort) : localServer(webServerPort) {
-  Serial.println("Instantiating OTF...");
+  DEBUG(Serial.println("Instantiating OTF...");)
   missingPageCallback = defaultMissingPageCallback;
   localServer.begin();
 };
@@ -24,16 +24,16 @@ OpenThingsFramework::OpenThingsFramework(uint16_t webServerPort) : localServer(w
 OpenThingsFramework::OpenThingsFramework(uint16_t webServerPort, const String &webSocketHost, uint16_t webSocketPort,
                                          const String &deviceKey, bool useSsl) : OpenThingsFramework(webServerPort) {
   setCloudStatus(UNABLE_TO_CONNECT);
-  Serial.println(F("Initializing websocket..."));
+  DEBUG(Serial.println(F("Initializing websocket..."));)
   webSocket = new WebSocketsClient();
   if (useSsl) {
-    Serial.println(F("Connecting to websocket with SSL"));
-    webSocket->beginSSL(webSocketHost, webSocketPort, "/socket/v1?deviceKey=" + deviceKey);
+    DEBUG(Serial.println(F("Connecting to websocket with SSL"));)
+    //webSocket->beginSSL(webSocketHost, webSocketPort, "/socket/v1?deviceKey=" + deviceKey);
   } else {
-    Serial.println(F("Connecting to websocket without SSL"));
+    DEBUG(Serial.println(F("Connecting to websocket without SSL"));)
     webSocket->begin(webSocketHost, webSocketPort, "/socket/v1?deviceKey=" + deviceKey);
   }
-  Serial.println(F("Initialized websocket"));
+  DEBUG(Serial.println(F("Initialized websocket"));)
 
   // Wrap the member function in a static function.
   webSocket->onEvent([this](WStype_t type, uint8_t *payload, size_t length) -> void {
@@ -63,7 +63,31 @@ void OpenThingsFramework::onMissingPage(callback_t callback) {
 }
 
 void OpenThingsFramework::localServerLoop() {
-  if (!localClient) {
+  static unsigned long wait_to = 0; // timeout to wait for client data
+  if (!wait_to) {
+    localClient = localServer.acceptClient();
+    // If a client wasn't available from the server, exit the local server loop.
+    if (!localClient) {
+      return;
+    }
+    // set a timeout to wait for client data
+    wait_to = millis()+WIFI_CONNECTION_TIMEOUT;
+  }
+  if (!localClient->dataAvailable()) {
+    // If data isn't available from the client yet, exit the local server loop and check again next iteration.
+    // but if we reached timeout, then reset wait_to to 0 and flush localClient so we can accept new client
+    if(millis()>wait_to) {
+      wait_to=0;
+      Serial.println(F("client wait timeout"));
+      localClient->flush();
+      localClient->stop();
+    }
+    return;
+  }
+  // got new client data, reset wait_to to 0
+  wait_to = 0;
+#if 0
+  //ray if (!localClient) {
     // If there isn't currently a pending client, check if one is available.
     localClient = localServer.acceptClient();
 
@@ -72,13 +96,24 @@ void OpenThingsFramework::localServerLoop() {
       return;
     }
 
-    localClient->setTimeout(WIFI_CONNECTION_TIMEOUT);
-  }
+    //raylocalClient->setTimeout(WIFI_CONNECTION_TIMEOUT);
+  //ray}
 
-  if (!localClient->dataAvailable()) {
+  Serial.println(F("got a client"));
+  unsigned long timeout = millis() + WIFI_CONNECTION_TIMEOUT;
+  while(!localClient->dataAvailable() && millis() < timeout) {
+  	delay(1);
+  }
+  if(!localClient->dataAvailable()) {
+  	localClient->flush();
+  	localClient->stop();
+  }
+/*ray  if (!localClient->dataAvailable()) {
     // If data isn't available from the client yet, exit the local server loop and check again next iteration.
     return;
-  }
+  }*/
+  //Serial.println(F("got a client with data"));
+#endif
 
   // Update the timeout for each data read to ensure that the total timeout is WIFI_CONNECTION_TIMEOUT.
   unsigned int timeout = WIFI_CONNECTION_TIMEOUT;
@@ -98,7 +133,7 @@ void OpenThingsFramework::localServerLoop() {
   size_t length = 0;
   while (localClient->dataAvailable()) {
     if (length >= HEADERS_BUFFER_SIZE) {
-      Serial.println(F("Request buffer is full, aborting"));
+      //Serial.println(F("Request buffer is full, aborting"));
       localClient->print(F("HTTP/1.1 413 Request too large\r\n\r\nThe request was too large"));
 
       // Get a new client to indicate that the previous client is no longer needed.
@@ -107,7 +142,7 @@ void OpenThingsFramework::localServerLoop() {
     }
 
     if (timeout <= 0) {
-      Serial.println(F("Request timed out"));
+      //Serial.println(F("Request timed out"));
       // Get a new client to indicate that the previous client is no longer needed.
       localClient = localServer.acceptClient();
       return;
@@ -131,16 +166,16 @@ void OpenThingsFramework::localServerLoop() {
       }
     }
   }
-  Serial.printf((char *) F("Finished reading data from client. Request line + headers were %d bytes\n"), length);
+  DEBUG(Serial.printf((char *) F("Finished reading data from client. Request line + headers were %d bytes\n"), length);)
 
   // Make sure that the headers were fully read into the buffer.
   if (strncmp_P(&buffer[length - 4], (char *) F("\r\n\r\n"), 4) != 0) {
-    Serial.println(F("The request headers were not fully read into the buffer."));
+    DEBUG(Serial.println(F("The request headers were not fully read into the buffer."));)
     localClient->print(F("HTTP/1.1 413 Request too large\r\n\r\nThe request was too large"));
     return;
   }
 
-  Serial.println(F("Parsing request"));
+  //Serial.println(F("Parsing request"));
   Request request(buffer, length, false);
 
   // If the request was valid, read the body and add it to the Request object.
@@ -166,24 +201,24 @@ void OpenThingsFramework::localServerLoop() {
     }
   }
 
-  Serial.println(F("Filling response"));
+  //Serial.println(F("Filling response"));
   Response res = Response();
   fillResponse(request, res);
 
-  Serial.println(F("Sending response"));
+  //Serial.println(F("Sending response"));
   if (res.isValid()) {
     char *responseString = res.toString();
-    Serial.printf((char *) F("Response message is: %s\n"), responseString);
+    DEBUG(Serial.printf((char *) F("Response message is: %s\n"), responseString);)
     localClient->print(responseString);
   } else {
     localClient->print(F("HTTP/1.1 500 OTF error\r\nResponse string could not be built\r\n"));
-    Serial.println(F("An error occurred while building the response string."));
+    DEBUG(Serial.println(F("An error occurred while building the response string."));)
   }
 
   // Get a new client to indicate that the previous client is no longer needed.
   localClient = localServer.acceptClient();
 
-  Serial.println(F("Finished handling request"));
+  DEBUG(Serial.println(F("Finished handling request"));)
 }
 
 void OpenThingsFramework::loop() {
@@ -196,7 +231,7 @@ void OpenThingsFramework::loop() {
 void OpenThingsFramework::webSocketCallback(WStype_t type, uint8_t *payload, size_t length) {
   switch (type) {
     case WStype_DISCONNECTED:
-      Serial.println(F("Disconnected from websocket"));
+      DEBUG(Serial.println(F("Disconnected from websocket"));)
       /* A failed attempt to connect will also fire a WStype_DISCONNECTED event, so this check is
        * needed to prevent the UNABLE_TO_CONNECT status to be overwritten. */
       if (cloudStatus == CONNECTED) {
@@ -204,11 +239,11 @@ void OpenThingsFramework::webSocketCallback(WStype_t type, uint8_t *payload, siz
       }
       break;
     case WStype_CONNECTED:
-      Serial.println(F("Connected to websocket"));
+      DEBUG(Serial.println(F("Connected to websocket"));)
       setCloudStatus(CONNECTED);
       break;
     case WStype_TEXT: {
-      Serial.printf((char *) F("Received a websocket message of length %d\n"), length);
+      DEBUG(Serial.printf((char *) F("Received a websocket message of length %d\n"), length);)
       char *message = (char *) payload;
 
 #define PREFIX_LENGTH 5
@@ -216,7 +251,7 @@ void OpenThingsFramework::webSocketCallback(WStype_t type, uint8_t *payload, siz
 // Length of the prefix, request ID, carriage return, and line feed.
 #define HEADER_LENGTH PREFIX_LENGTH + ID_LENGTH + 2
       if (strncmp_P(message, (char *) F("FWD: "), PREFIX_LENGTH) == 0) {
-        Serial.println(F("Message is a forwarded request."));
+        DEBUG(Serial.println(F("Message is a forwarded request."));)
         char *requestId = &message[PREFIX_LENGTH];
         // Replace the assumed carriage return with a null character to terminate the ID string.
         requestId[ID_LENGTH] = '\0';
@@ -229,17 +264,17 @@ void OpenThingsFramework::webSocketCallback(WStype_t type, uint8_t *payload, siz
         if (res.isValid()) {
           webSocket->sendTXT(res.toString(), res.getLength());
         } else {
-          Serial.println(F("An error occurred building response string"));
+          DEBUG(Serial.println(F("An error occurred building response string"));)
           StringBuilder builder(100);
           builder.bprintf(F("RES: %s\r\n%s"), requestId,
                           F("HTTP/1.1 500 Internal Error\r\n\r\nAn internal error occurred"));
           if (!builder.isValid()) {
-            Serial.println(F("Builder is not valid"));
+            DEBUG(Serial.println(F("Builder is not valid"));)
             return;
           }
         }
       } else {
-        Serial.println(F("Websocket message does not start with the correct prefix."));
+        DEBUG(Serial.println(F("Websocket message does not start with the correct prefix."));)
       }
       break;
     }
@@ -248,11 +283,12 @@ void OpenThingsFramework::webSocketCallback(WStype_t type, uint8_t *payload, siz
       // Pings/pongs will be automatically handled by the websockets library.
       break;
     case WStype_ERROR:
-      Serial.print(F("Websocket error: "));
-      Serial.println(std::string((char *) payload, length).c_str());
+      DEBUG(Serial.print(F("Websocket error: "));)
+      DEBUG(Serial.println(std::string((char *) payload, length).c_str());)
       break;
     default:
-      Serial.printf((char *) F("Received unsupported websocket event of type %d\n"), type);
+      DEBUG(Serial.printf((char *) F("Received unsupported websocket event of type %d\n"), type);)
+      break;
   }
 }
 
@@ -265,7 +301,7 @@ void OpenThingsFramework::fillResponse(const Request &req, Response &res) {
   }
 
   // TODO handle trailing slash in path?
-  Serial.printf((char *) F("Attempting to route request to path '%s'\n"), req.getPath());
+  DEBUG(Serial.printf((char *) F("Attempting to route request to path '%s'\n"), req.getPath());)
   StringBuilder *sb = new StringBuilder(KEY_MAX_LENGTH);
   char *key = makeMapKey(sb, req.httpMethod, req.getPath());
   callback_t callback = callbacks.find(key);
@@ -281,7 +317,7 @@ void OpenThingsFramework::fillResponse(const Request &req, Response &res) {
   delete sb;
 
   if (callback != nullptr) {
-    Serial.println(F("Found callback"));
+    DEBUG(Serial.println(F("Found callback"));)
     callback(req, res);
   } else {
     // Run the missing page callback if none of the registered paths matched.
