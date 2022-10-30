@@ -6,7 +6,7 @@
 #include <Arduino.h>
 
 // The maximum possible size of response messages.
-#define RESPONSE_BUFFER_SIZE 18000
+#define RESPONSE_BUFFER_SIZE 10000
 
 namespace OTF {
 
