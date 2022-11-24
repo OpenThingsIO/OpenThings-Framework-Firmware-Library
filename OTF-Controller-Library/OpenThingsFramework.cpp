@@ -63,6 +63,7 @@ void OpenThingsFramework::onMissingPage(callback_t callback) {
 }
 
 void OpenThingsFramework::localServerLoop() {
+
   static unsigned long wait_to = 0; // timeout to wait for client data
   if (!wait_to) {
     localClient = localServer.acceptClient();
@@ -78,7 +79,7 @@ void OpenThingsFramework::localServerLoop() {
     // but if we reached timeout, then reset wait_to to 0 and flush localClient so we can accept new client
     if(millis()>wait_to) {
       wait_to=0;
-      Serial.println(F("client wait timeout"));
+      DEBUG(Serial.println(F("client wait timeout")));
       localClient->flush();
       localClient->stop();
     }
@@ -86,87 +87,30 @@ void OpenThingsFramework::localServerLoop() {
   }
   // got new client data, reset wait_to to 0
   wait_to = 0;
-#if 0
-  //ray if (!localClient) {
-    // If there isn't currently a pending client, check if one is available.
-    localClient = localServer.acceptClient();
 
-    // If a client wasn't available from the server, exit the local server loop.
-    if (!localClient) {
-      return;
-    }
-
-    //raylocalClient->setTimeout(WIFI_CONNECTION_TIMEOUT);
-  //ray}
-
-  Serial.println(F("got a client"));
-  unsigned long timeout = millis() + WIFI_CONNECTION_TIMEOUT;
-  while(!localClient->dataAvailable() && millis() < timeout) {
-  	delay(1);
-  }
-  if(!localClient->dataAvailable()) {
-  	localClient->flush();
-  	localClient->stop();
-  }
-/*ray  if (!localClient->dataAvailable()) {
-    // If data isn't available from the client yet, exit the local server loop and check again next iteration.
-    return;
-  }*/
-  //Serial.println(F("got a client with data"));
-#endif
 
   // Update the timeout for each data read to ensure that the total timeout is WIFI_CONNECTION_TIMEOUT.
-  unsigned int timeout = WIFI_CONNECTION_TIMEOUT;
-  unsigned long lastTime = millis();
-#define UPDATE_TIMEOUT                        \
-  {                                           \
-    unsigned long diff = millis() - lastTime; \
-    if (diff >= timeout) {                    \
-      timeout = 0;                            \
-      continue;                               \
-    }                                         \
-    timeout -= diff;                          \
-    localClient->setTimeout(timeout);         \
-  }
+  unsigned int timeout = millis()+WIFI_CONNECTION_TIMEOUT;
+
 
   char buffer[HEADERS_BUFFER_SIZE];
   size_t length = 0;
-  while (localClient->dataAvailable()) {
+  while (localClient->dataAvailable()&&millis()<timeout) {
     if (length >= HEADERS_BUFFER_SIZE) {
-      //Serial.println(F("Request buffer is full, aborting"));
       localClient->print(F("HTTP/1.1 413 Request too large\r\n\r\nThe request was too large"));
-
       // Get a new client to indicate that the previous client is no longer needed.
       localClient = localServer.acceptClient();
       return;
     }
 
-    if (timeout <= 0) {
-      //Serial.println(F("Request timed out"));
-      // Get a new client to indicate that the previous client is no longer needed.
-      localClient = localServer.acceptClient();
-      return;
-    }
-
-    size_t read = localClient->readBytesUntil('\n', &buffer[length], min((int) (HEADERS_BUFFER_SIZE - length - 1), 1024));
+    size_t read = localClient->readBytesUntil('\n', &buffer[length], min((int) (HEADERS_BUFFER_SIZE - length - 1), HEADERS_BUFFER_SIZE));
+    char rc = buffer[length];
     length += read;
     buffer[length++] = '\n';
-    UPDATE_TIMEOUT
-
-    if (localClient->peek() == '\r') {
-      UPDATE_TIMEOUT
-      // Try to read the second sequential CRLF that marks the beginning of the request body.
-      read = localClient->readBytesUntil('\n', &buffer[length], min((int) (HEADERS_BUFFER_SIZE - length - 1), 2));
-      length += read;
-      buffer[length++] = '\n';
-      UPDATE_TIMEOUT
-      // If exactly 2 characters were read, assume the first one was '\n' and that the end of the headers has been reached.
-      if (read == 2) {
-        break;
-      }
-    }
+    if(read==1 && rc=='\r') { break; }
   }
   DEBUG(Serial.printf((char *) F("Finished reading data from client. Request line + headers were %d bytes\n"), length);)
+  buffer[length] = 0;
 
   // Make sure that the headers were fully read into the buffer.
   if (strncmp_P(&buffer[length - 4], (char *) F("\r\n\r\n"), 4) != 0) {
@@ -178,6 +122,7 @@ void OpenThingsFramework::localServerLoop() {
   //Serial.println(F("Parsing request"));
   Request request(buffer, length, false);
 
+  char *bodyBuffer = NULL;
   // If the request was valid, read the body and add it to the Request object.
   if (request.getType() > INVALID) {
     char *contentLengthString = request.getHeader(F("content-length"));
@@ -187,15 +132,15 @@ void OpenThingsFramework::localServerLoop() {
       // If the header specifies a length of 0 or could not be parsed, the message has no body.
       if (contentLength > 0) {
         // Read the body from the client.
-        char bodyBuffer[contentLength];
+        bodyBuffer = new char[contentLength];
         size_t bodyLength = 0;
-        while (localClient->dataAvailable()) {
-          UPDATE_TIMEOUT
+        timeout = millis()+WIFI_CONNECTION_TIMEOUT;
+        while (localClient->dataAvailable() && millis()<timeout) {
           size_t read = localClient->readBytes(&bodyBuffer[bodyLength], min((int) (contentLength - bodyLength), 1024));
           bodyLength += read;
         }
-
-        request.body = &bodyBuffer[0];
+        bodyBuffer[bodyLength] = 0;
+        request.body = bodyBuffer;
         request.bodyLength = bodyLength;
       }
     }
@@ -205,6 +150,7 @@ void OpenThingsFramework::localServerLoop() {
   Response res = Response();
   fillResponse(request, res);
 
+  if(bodyBuffer) delete[] bodyBuffer;
   //Serial.println(F("Sending response"));
   if (res.isValid()) {
     char *responseString = res.toString();

@@ -8,13 +8,11 @@
 #include <WebSocketsClient.h>
 
 #if defined(ESP8266)
-#include "Esp8266LocalServer.h"
-#define LOCAL_SERVER_CLASS Esp8266LocalServer
-#endif
-
-#if defined(ESP32)
-#include "Esp32LocalServer.h"
-#define LOCAL_SERVER_CLASS Esp32LocalServer
+  #include "Esp8266LocalServer.h"
+  #define LOCAL_SERVER_CLASS Esp8266LocalServer
+#elif defined(ESP32)
+  #include "Esp32LocalServer.h"
+  #define LOCAL_SERVER_CLASS Esp32LocalServer
 #endif
 
 namespace OTF {
