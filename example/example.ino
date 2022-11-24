@@ -21,8 +21,8 @@ void memoryUsage(const OTF::Request &req, OTF::Response &res) {
 }
 
 void logMessage(const OTF::Request &req, OTF::Response &res) {
-  std::string body = std::string(req.getBody(), req.getBodyLength());
-  Serial.println(body.c_str());
+  Serial.print(F("Received message body: "));
+  Serial.println(req.getBody());
   res.writeStatus(200, "OK");
   res.writeHeader(F("content-type"), F("text/plain"));
   res.writeBodyChunk(F("The message has been logged to the serial monitor"));
@@ -51,6 +51,7 @@ void setup() {
   otf->on(F("/uptime"), uptime);
   otf->on(F("/memory"), memoryUsage);
   otf->on(F("/log"), logMessage, OTF::HTTP_POST);
+  otf->on(F("/log"), logMessage, OTF::HTTP_PUT);
   otf->onMissingPage(missingPage);
   Serial.println(F("Finished setup"));
 }
