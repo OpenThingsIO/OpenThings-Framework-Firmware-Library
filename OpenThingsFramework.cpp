@@ -1,11 +1,6 @@
 #include "OpenThingsFramework.h"
 #include "StringBuilder.h"
 
-// The size of the buffer to store the incoming request line and headers (does not include body). Larger requests will be discarded.
-#define HEADERS_BUFFER_SIZE 1024
-// TODO This doesn't work because the macro is redefined in WebSockets.h
-// The size of the buffer to store incoming websocket requests in. Larger requests will be discarded.
-#define WEBSOCKETS_MAX_DATA_SIZE REQUEST_BUFFER_SIZE
 // The timeout for reading and parsing incoming requests.
 #define WIFI_CONNECTION_TIMEOUT 1500
 /* How often to try to reconnect to the websocket if the connection is lost. Each reconnect attempt is blocking and has
@@ -15,14 +10,21 @@
 
 using namespace OTF;
 
-OpenThingsFramework::OpenThingsFramework(uint16_t webServerPort) : localServer(webServerPort) {
+OpenThingsFramework::OpenThingsFramework(uint16_t webServerPort, char *hdBuffer, int hdBufferSize) : localServer(webServerPort) {
   DEBUG(Serial.println("Instantiating OTF...");)
+  if(hdBuffer != NULL) { // if header buffer is externally provided, use it directly
+    headerBuffer = hdBuffer;
+    headerBufferSize = (hdBufferSize > 0) ? hdBufferSize : HEADERS_BUFFER_SIZE;
+  } else { // otherwise allocate one
+    headerBuffer = new char[HEADERS_BUFFER_SIZE];
+    headerBufferSize = HEADERS_BUFFER_SIZE;
+  }
   missingPageCallback = defaultMissingPageCallback;
   localServer.begin();
 };
 
 OpenThingsFramework::OpenThingsFramework(uint16_t webServerPort, const String &webSocketHost, uint16_t webSocketPort,
-                                         const String &deviceKey, bool useSsl) : OpenThingsFramework(webServerPort) {
+                                         const String &deviceKey, bool useSsl, char *hdBuffer, int hdBufferSize) : OpenThingsFramework(webServerPort, hdBuffer, hdBufferSize) {
   setCloudStatus(UNABLE_TO_CONNECT);
   DEBUG(Serial.println(F("Initializing websocket..."));)
   webSocket = new WebSocketsClient();
@@ -93,17 +95,17 @@ void OpenThingsFramework::localServerLoop() {
   unsigned int timeout = millis()+WIFI_CONNECTION_TIMEOUT;
 
 
-  char buffer[HEADERS_BUFFER_SIZE];
+  char *buffer = headerBuffer;
   size_t length = 0;
   while (localClient->dataAvailable()&&millis()<timeout) {
-    if (length >= HEADERS_BUFFER_SIZE) {
+    if (length >= headerBufferSize) {
       localClient->print(F("HTTP/1.1 413 Request too large\r\n\r\nThe request was too large"));
       // Get a new client to indicate that the previous client is no longer needed.
       localClient = localServer.acceptClient();
       return;
     }
 
-    size_t read = localClient->readBytesUntil('\n', &buffer[length], min((int) (HEADERS_BUFFER_SIZE - length - 1), HEADERS_BUFFER_SIZE));
+    size_t read = localClient->readBytesUntil('\n', &buffer[length], min((int) (headerBufferSize - length - 1), headerBufferSize));
     char rc = buffer[length];
     length += read;
     buffer[length++] = '\n';

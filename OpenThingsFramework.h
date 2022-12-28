@@ -15,6 +15,9 @@
   #define LOCAL_SERVER_CLASS Esp32LocalServer
 #endif
 
+// The size of the buffer to store the incoming request line and headers (does not include body). Larger requests will be discarded.
+#define HEADERS_BUFFER_SIZE 1536
+
 namespace OTF {
   typedef void (*callback_t)(const Request &request, Response &response);
 
@@ -38,6 +41,8 @@ namespace OTF {
     callback_t missingPageCallback;
     CLOUD_STATUS cloudStatus = NOT_ENABLED;
     unsigned long lastCloudStatusChangeTime = millis();
+    char *headerBuffer = NULL;
+    int headerBufferSize = 0;
 
     void webSocketCallback(WStype_t type, uint8_t *payload, size_t length);
 
@@ -51,8 +56,10 @@ namespace OTF {
     /**
      * Initializes the library to only listen on a local webserver.
      * @param webServerPort The local port to bind the webserver to.
+     * @param hdBuffer externally provided header buffer (optional)
+     * @param hdBufferSize size of the externally provided header buffer (optional)
      */
-    OpenThingsFramework(uint16_t webServerPort);
+    OpenThingsFramework(uint16_t webServerPort, char *hdBuffer = NULL, int hdBufferSize = HEADERS_BUFFER_SIZE);
 
     /**
      * Initializes the library to listen on a local webserver and connect to a remote websocket.
@@ -61,9 +68,11 @@ namespace OTF {
      * @param webSocketPort The port of the remote websocket.
      * @param deviceKey The unique device key that identifies this device.
      * @param useSsl Indicates if SSL should be used when connecting to the websocket.
+     * @param hdBuffer externally provided header buffer (optional)
+     * @param hdBufferSize size of the externally provided header buffer (optional)
      */
     OpenThingsFramework(uint16_t webServerPort, const String &webSocketHost, uint16_t webSocketPort,
-                        const String &deviceKey, bool useSsl);
+                        const String &deviceKey, bool useSsl, char *hdBuffer = NULL, int hdBufferSize = HEADERS_BUFFER_SIZE);
 
     /**
      * Registers a callback function to run when a request is made to the specified path. The callback function will
