@@ -149,18 +149,18 @@ void OpenThingsFramework::localServerLoop() {
   }
 
   //Serial.println(F("Filling response"));
-  Response res = Response();
+  Response res = Response(localClient);
   fillResponse(request, res);
 
   if(bodyBuffer) delete[] bodyBuffer;
   //Serial.println(F("Sending response"));
   if (res.isValid()) {
     char *responseString = res.toString();
-    DEBUG(Serial.printf((char *) F("Response message is: %s\n"), responseString);)
+    //DEBUG(Serial.printf((char *) F("Response message is: %s\n"), responseString);)
     localClient->print(responseString);
   } else {
     localClient->print(F("HTTP/1.1 500 OTF error\r\nResponse string could not be built\r\n"));
-    DEBUG(Serial.println(F("An error occurred while building the response string."));)
+    //DEBUG(Serial.println(F("An error occurred while building the response string."));)
   }
 
   // Get a new client to indicate that the previous client is no longer needed.
@@ -205,7 +205,7 @@ void OpenThingsFramework::webSocketCallback(WStype_t type, uint8_t *payload, siz
         requestId[ID_LENGTH] = '\0';
 
         Request request(&message[HEADER_LENGTH], length - HEADER_LENGTH, true);
-        Response res = Response();
+        Response res = Response(webSocket);
         res.bprintf(F("RES: %s\r\n"), requestId);
         fillResponse(request, res);
 

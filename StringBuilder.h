@@ -51,6 +51,10 @@ namespace OTF {
      * be used.
      */
     bool isValid();
+
+    bool willFit(size_t size);
+
+    void reset();
   };
 }// namespace OTF
 

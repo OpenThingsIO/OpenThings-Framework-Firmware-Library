@@ -103,3 +103,13 @@ void Response::writeBodyChunk(const __FlashStringHelper *const format, ...) {
   bprintf(format, args);
   va_end(args);
 }
+
+void Response::flush() {
+  char *responseString = toString();
+  if (localClient)
+    localClient->print(responseString);
+  else if (webSocket)
+    webSocket->sendTXT(responseString, strlen(responseString));
+
+  reset();
+}

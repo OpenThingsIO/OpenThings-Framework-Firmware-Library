@@ -56,3 +56,12 @@ size_t StringBuilder::getLength() const {
 bool StringBuilder::isValid() {
   return valid;
 }
+
+bool StringBuilder::willFit(size_t size) {
+  return size + length <= maxLength;
+}
+
+void StringBuilder::reset() {
+  length = 0;
+  buffer[0] = 0;
+}
