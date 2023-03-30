@@ -109,7 +109,7 @@ void Response::flush() {
   if (localClient)
     localClient->print(responseString);
   else if (webSocket)
-    webSocket->sendTXT(responseString, strlen(responseString));
+    webSocket->sendTXT(responseString, strlen(responseString), false, false);
 
   reset();
 }
