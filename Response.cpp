@@ -78,7 +78,7 @@ void Response::writeBodyChunk(char *const format, ...) {
     return;
   }
   if (responseStatus != BODY_WRITTEN) {
-    bprintf((char *) "\r\n");
+    append("\r\n");
     responseStatus = BODY_WRITTEN;
   }
 
@@ -94,7 +94,7 @@ void Response::writeBodyChunk(const __FlashStringHelper *const format, ...) {
     return;
   }
   if (responseStatus != BODY_WRITTEN) {
-    bprintf((char *) "\r\n");
+    append("\r\n");
     responseStatus = BODY_WRITTEN;
   }
 
@@ -109,7 +109,7 @@ void Response::flush() {
   if (localClient)
     localClient->print(responseString);
   else if (webSocket)
-    webSocket->sendTXT((uint8_t*)responseString, strlen(responseString), false, false);
+    webSocket->sendTXT(responseString, getLength(), false, false);
 
   reset();
 }

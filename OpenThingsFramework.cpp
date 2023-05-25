@@ -210,7 +210,7 @@ void OpenThingsFramework::webSocketCallback(WStype_t type, uint8_t *payload, siz
         fillResponse(request, res);
 
         if (res.isValid()) {
-          webSocket->sendTXT((uint8_t*)res.toString(), res.getLength(), true, false);
+          webSocket->sendTXT(res.toString(), res.getLength(), true, false);
         } else {
           DEBUG(Serial.println(F("An error occurred building response string"));)
           StringBuilder builder(100);

@@ -58,10 +58,34 @@ bool StringBuilder::isValid() {
 }
 
 bool StringBuilder::willFit(size_t size) {
-  return size + length <= maxLength;
+  return size + length + 1 < maxLength;
 }
 
 void StringBuilder::reset() {
   length = 0;
   buffer[0] = 0;
+  valid = true;
 }
+
+void StringBuilder::append(const char *txt, size_t size) {
+  if (!valid || !willFit(size)) {
+    valid = false;
+    return;
+  }
+  strncpy(&buffer[length], txt, size);
+  length += size;
+  buffer[length] = 0;
+}
+
+void StringBuilder::append(const char *txt) {
+  append(txt, strlen(txt));
+}
+
+void StringBuilder::append(const __FlashStringHelper *const txt, size_t size) {
+  append((char *)txt, size);
+}
+
+void StringBuilder::append(const __FlashStringHelper *const txt) {
+  append((char *)txt);
+}
+
