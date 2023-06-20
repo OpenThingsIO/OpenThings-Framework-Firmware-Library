@@ -98,7 +98,7 @@ void OpenThingsFramework::localServerLoop() {
   char *buffer = headerBuffer;
   size_t length = 0;
   while (localClient->dataAvailable()&&millis()<timeout) {
-    if (length >= headerBufferSize) {
+    if (length >= (size_t)headerBufferSize) {
       localClient->print(F("HTTP/1.1 413 Request too large\r\n\r\nThe request was too large"));
       // Get a new client to indicate that the previous client is no longer needed.
       localClient = localServer.acceptClient();
@@ -112,6 +112,7 @@ void OpenThingsFramework::localServerLoop() {
     if(read==1 && rc=='\r') { break; }
   }
   DEBUG(Serial.printf((char *) F("Finished reading data from client. Request line + headers were %d bytes\n"), length);)
+  DEBUG(Serial.printf((char *) F("Request: %s\n"), (char *) buffer);)
   buffer[length] = 0;
 
   // Make sure that the headers were fully read into the buffer.
@@ -149,24 +150,28 @@ void OpenThingsFramework::localServerLoop() {
   }
 
   //Serial.println(F("Filling response"));
-  Response res = Response();
+  Response res = Response(localClient);
   fillResponse(request, res);
 
   if(bodyBuffer) delete[] bodyBuffer;
   //Serial.println(F("Sending response"));
   if (res.isValid()) {
     char *responseString = res.toString();
-    DEBUG(Serial.printf((char *) F("Response message is: %s\n"), responseString);)
+    //DEBUG(Serial.printf((char *) F("Response message is: %s\n"), responseString);)
     localClient->print(responseString);
   } else {
     localClient->print(F("HTTP/1.1 500 OTF error\r\nResponse string could not be built\r\n"));
-    DEBUG(Serial.println(F("An error occurred while building the response string."));)
+    //DEBUG(Serial.println(F("An error occurred while building the response string."));)
   }
+  localClient->flush();
+  localClient->stop();
+
+  DEBUG(Serial.println(F("Finished handling request"));)
 
   // Get a new client to indicate that the previous client is no longer needed.
   localClient = localServer.acceptClient();
-
-  DEBUG(Serial.println(F("Finished handling request"));)
+  if (localClient)
+    wait_to = millis()+WIFI_CONNECTION_TIMEOUT;
 }
 
 void OpenThingsFramework::loop() {
@@ -205,12 +210,12 @@ void OpenThingsFramework::webSocketCallback(WStype_t type, uint8_t *payload, siz
         requestId[ID_LENGTH] = '\0';
 
         Request request(&message[HEADER_LENGTH], length - HEADER_LENGTH, true);
-        Response res = Response();
+        Response res = Response(webSocket);
         res.bprintf(F("RES: %s\r\n"), requestId);
         fillResponse(request, res);
 
         if (res.isValid()) {
-          webSocket->sendTXT(res.toString(), res.getLength());
+          webSocket->sendTXT(res.toString(), res.getLength(), true, false);
         } else {
           DEBUG(Serial.println(F("An error occurred building response string"));)
           StringBuilder builder(100);
@@ -232,7 +237,7 @@ void OpenThingsFramework::webSocketCallback(WStype_t type, uint8_t *payload, siz
       break;
     case WStype_ERROR:
       DEBUG(Serial.print(F("Websocket error: "));)
-      DEBUG(Serial.println(std::string((char *) payload, length).c_str());)
+      DEBUG(Serial.println((char *) payload);)
       break;
     default:
       DEBUG(Serial.printf((char *) F("Received unsupported websocket event of type %d\n"), type);)

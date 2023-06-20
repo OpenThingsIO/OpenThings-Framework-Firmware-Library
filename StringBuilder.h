@@ -37,6 +37,14 @@ namespace OTF {
 
     void bprintf(const __FlashStringHelper *const format, ...);
 
+    void append(const char *txt, size_t size);
+
+    void append(const char *txt);
+
+    void append(const __FlashStringHelper *const txt, size_t size);
+
+    void append(const __FlashStringHelper *const txt);
+
     /**
      * Returns the null-terminated represented string stored in the underlying buffer.
      * @return The null-terminated represented string stored in the underlying buffer.
@@ -51,6 +59,10 @@ namespace OTF {
      * be used.
      */
     bool isValid();
+
+    bool willFit(size_t size);
+
+    void reset();
   };
 }// namespace OTF
 

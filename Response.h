@@ -2,11 +2,13 @@
 #define OTF_RESPONSE_H
 
 #include "StringBuilder.h"
+#include "LocalServer.h"
+#include "WebSocketsClient.h"
 
 #include <Arduino.h>
 
 // The maximum possible size of response messages.
-#define RESPONSE_BUFFER_SIZE 18000
+#define RESPONSE_BUFFER_SIZE 10*1024
 
 namespace OTF {
 
@@ -21,9 +23,12 @@ namespace OTF {
       BODY_WRITTEN
     };
     ResponseStatus responseStatus = CREATED;
+    LocalClient *localClient = nullptr;
+    WebSocketsClient *webSocket = nullptr;
 
-    Response() : StringBuilder(RESPONSE_BUFFER_SIZE) {}
+    Response(WebSocketsClient *pwebSocket) : StringBuilder(RESPONSE_BUFFER_SIZE) {webSocket = pwebSocket;}
 
+    Response(LocalClient *plocalClient) : StringBuilder(RESPONSE_BUFFER_SIZE) {localClient = plocalClient;}
 
   public:
     static const size_t MAX_RESPONSE_LENGTH = RESPONSE_BUFFER_SIZE;
@@ -58,6 +63,8 @@ namespace OTF {
     void writeBodyChunk(char *format, ...);
 
     void writeBodyChunk(const __FlashStringHelper *const format, ...);
+
+    void flush();
   };
 }// namespace OTF
 #endif

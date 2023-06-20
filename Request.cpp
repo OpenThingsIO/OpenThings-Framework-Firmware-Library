@@ -118,7 +118,7 @@ Request::Request(char *str, size_t length, bool cloudRequest) {
     }
   }
 
-  // Parse headers until "\r\n\r\n" is encountered (indicates the end of headers) or the end of the string is reached (caused by invalid requests).
+  // Parse headers until "\r\n\r\n" is encountered (indicates the end of headers) or the end of the string is reached (caused b"y invalid requests).
   while (index < length && str[index] != '\r') {
     if (!parseHeader(str, length, index, headers)) {
       // Reject the request if an error occurs while parsing headers.
