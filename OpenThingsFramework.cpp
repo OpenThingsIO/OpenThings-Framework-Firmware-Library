@@ -1,5 +1,8 @@
 #include "OpenThingsFramework.h"
 #include "StringBuilder.h"
+#if defined(DEBUG)
+#include <string>
+#endif
 
 // The timeout for reading and parsing incoming requests.
 #define WIFI_CONNECTION_TIMEOUT 1500
