@@ -3,7 +3,11 @@
 
 #include <ArduinoWebsockets.h>
 
+#ifdef DEBUG 
 #define WS_DEBUG(...) Serial.print("Websocket: "); Serial.printf(__VA_ARGS__)
+#else
+#define WS_DEBUG(...)
+#endif
 
 class WebsocketClient : public websockets::WebsocketsClient {
 public:
@@ -25,6 +29,13 @@ public:
         case websockets::WebsocketsEvent::ConnectionOpened:
           WS_DEBUG("Connection opened\n");
           webSocketReconnectFirstAttempt = false;
+          break;
+          case websockets::WebsocketsEvent::ConnectionClosed:
+          WS_DEBUG("Connection closed\n");
+          if (webSocketHeartbeatEnabled) {
+            webSocketHeartbeatMissed = 0;
+            webSocketHeartbeatInProgress = false;
+          }
           break;
       }
 

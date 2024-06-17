@@ -1,12 +1,12 @@
 #include "OpenThingsFramework.h"
-#include "StringBuilder.h"
+#include "StringBuilder.hpp"
 
 // The timeout for reading and parsing incoming requests.
 #define WIFI_CONNECTION_TIMEOUT 1500
 /* How often to try to reconnect to the websocket if the connection is lost. Each reconnect attempt is blocking and has
  * a 5 second timeout.
  */
-#define WEBSOCKET_RECONNECT_INTERVAL 30000
+#define WEBSOCKET_RECONNECT_INTERVAL 3000
 
 using namespace OTF;
 
@@ -159,16 +159,27 @@ void OpenThingsFramework::localServerLoop() {
   }
 
   //Serial.println(F("Filling response"));
+  // TODO: See if this works
   Response res = Response();
+  res.enableStream([this](const char *buffer, size_t length, bool streaming) -> void {
+    localClient->write(buffer, length);
+  }, [this]() -> void {
+    localClient->flush();
+  }, [this]() -> void {
+    localClient->flush();
+  });
   fillResponse(request, res);
 
   if(bodyBuffer) delete[] bodyBuffer;
   //Serial.println(F("Sending response"));
   if (res.isValid()) {
-    char *responseString = res.toString();
-    DEBUG(Serial.printf((char *) F("Response message is: %s\n"), responseString);)
-    localClient->print(responseString);
+    // char *responseString = res.toString();
+    // DEBUG(Serial.printf((char *) F("Response message is: %s\n"), responseString);)
+    // localClient->print(responseString);
+    DEBUG(Serial.printf("Sent response, %d bytes\n", res.getTotalLength());)
+    res.end();
   } else {
+    res.end();
     localClient->print(F("HTTP/1.1 500 OTF error\r\nResponse string could not be built\r\n"));
     DEBUG(Serial.println(F("An error occurred while building the response string."));)
   }
@@ -236,13 +247,27 @@ void OpenThingsFramework::webSocketMessageCallback(websockets::WebsocketsMessage
 
         Request request(&message_data[HEADER_LENGTH], length - HEADER_LENGTH, true);
         Response res = Response();
+        res.enableStream([this] (const char *buffer, size_t length, bool streaming) -> void {
+          if (!streaming) {
+            webSocket->stream();
+          }
+            webSocket->send(buffer, length);
+        }, [this] () -> void {
+          webSocket->send("", 0);
+        }, [this] () -> void {
+          webSocket->end();
+        });
+
         res.bprintf(F("RES: %s\r\n"), requestId);
         fillResponse(request, res);
 
         if (res.isValid()) {
-          webSocket->send(res.toString(), res.getLength());
+          // webSocket->send(res.toString(), res.getLength());
+          DEBUG(Serial.printf("Sent response, %d bytes\n", res.getTotalLength());)
+          res.end();
         } else {
           DEBUG(Serial.println(F("An error occurred building response string"));)
+          res.end();
           StringBuilder builder(100);
           builder.bprintf(F("RES: %s\r\n%s"), requestId,
                           F("HTTP/1.1 500 Internal Error\r\n\r\nAn internal error occurred"));

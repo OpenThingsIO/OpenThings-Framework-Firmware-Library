@@ -1,12 +1,12 @@
 #ifndef OTF_RESPONSE_H
 #define OTF_RESPONSE_H
 
-#include "StringBuilder.h"
+#include "StringBuilder.hpp"
 
 #include <Arduino.h>
 
 // The maximum possible size of response messages.
-#define RESPONSE_BUFFER_SIZE 12000
+#define RESPONSE_BUFFER_SIZE 4096
 
 namespace OTF {
 
