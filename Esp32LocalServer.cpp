@@ -55,4 +55,13 @@ int Esp32LocalClient::peek() {
 void Esp32LocalClient::setTimeout(int timeout) {
   client.setTimeout(timeout);
 }
+
+void Esp32LocalClient::flush() {
+  client.flush();
+}
+
+void Esp32LocalClient::stop() {
+  client.stop();
+}
+
 #endif
