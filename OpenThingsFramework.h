@@ -36,7 +36,7 @@ namespace OTF {
   private:
     LOCAL_SERVER_CLASS localServer = LOCAL_SERVER_CLASS(80);
     LocalClient *localClient = nullptr;
-    WebsocketsClient *webSocket = nullptr;
+    WebsocketClient *webSocket = nullptr;
     LinkedMap<callback_t> callbacks;
     callback_t missingPageCallback;
     CLOUD_STATUS cloudStatus = NOT_ENABLED;

@@ -27,7 +27,7 @@ OpenThingsFramework::OpenThingsFramework(uint16_t webServerPort, const String &w
                                          const String &deviceKey, bool useSsl, char *hdBuffer, int hdBufferSize) : OpenThingsFramework(webServerPort, hdBuffer, hdBufferSize) {
   setCloudStatus(UNABLE_TO_CONNECT);
   DEBUG(Serial.println(F("Initializing websocket..."));)
-  webSocket = new websockets::WebsocketsClient();
+  webSocket = new WebsocketClient();
 
   // Wrap the member function in a static function.
   webSocket->onEvent([this](websockets::WebsocketsEvent event, String data) -> void {
@@ -50,19 +50,11 @@ OpenThingsFramework::OpenThingsFramework(uint16_t webServerPort, const String &w
     connected = webSocket->connect(webSocketHost, webSocketPort, "/socket/v1?deviceKey=" + deviceKey);
   }
   DEBUG(Serial.println(F("Initialized websocket"));)
-  
 
-  if(connected) {
-        DEBUG(Serial.println(F("Connected to websocket"));)
-        webSocket->send(F("HELLO\r\n"));
-  } else {
-        DEBUG(Serial.println(F("Failed to connect to websocket"));)
-  }
-
-
-  enableWebSocketReconnect(WEBSOCKET_RECONNECT_INTERVAL);
+  // Try to reconnect to the websocket if the connection is lost.
+  webSocket->enableWebSocketReconnect(1000, WEBSOCKET_RECONNECT_INTERVAL);
   // Ping the server every 15 seconds with a timeout of 5 seconds, and treat 1 missed ping as a lost connection.
-  enableWebSocketHeartbeat(15000, 5000, 1);
+  webSocket->enableWebSocketHeartbeat(15000, 5000, 1);
 }
 
 char *makeMapKey(StringBuilder *sb, HTTPMethod method, const char *path) {
@@ -190,7 +182,6 @@ void OpenThingsFramework::localServerLoop() {
 void OpenThingsFramework::loop() {
   localServerLoop();
   if (webSocket != nullptr) {
-    // TODO: Reconnect and heartbeat
     webSocket->poll();
   }
 }
