@@ -6,7 +6,7 @@
 #include <Arduino.h>
 
 // The maximum possible size of response messages.
-#define RESPONSE_BUFFER_SIZE 4096
+#define RESPONSE_BUFFER_SIZE 2048
 
 namespace OTF {
 
@@ -58,6 +58,8 @@ namespace OTF {
     void writeBodyChunk(char *format, ...);
 
     void writeBodyChunk(const __FlashStringHelper *const format, ...);
+
+    void writeBodyData(const char *data, size_t max_length);
   };
 }// namespace OTF
 #endif

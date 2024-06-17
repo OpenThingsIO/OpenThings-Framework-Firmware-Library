@@ -48,6 +48,11 @@ namespace OTF {
     void bprintf(const __FlashStringHelper *const format, ...);
 
     /**
+     * Raw Write to buffer
+     */
+    size_t write(const char *data, size_t length);
+
+    /**
      * Enables streaming mode for the StringBuilder.
      */
     void enableStream(stream_write_t write, stream_flush_t flush, stream_end_t end);
