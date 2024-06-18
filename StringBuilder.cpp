@@ -21,7 +21,7 @@ void StringBuilder::bprintf(char *format, va_list args) {
 
 
   if (stream_write && ((res >= maxLength) || (length + res >= maxLength))) {
-    // If in streaming mode flush the buffer and continue writing.
+    // If in streaming mode flush the buffer and continue writing if the data doesn't fit.
     stream_write(buffer, length, streaming);
     stream_flush();
     clear();
@@ -58,18 +58,14 @@ void StringBuilder::bprintf(const __FlashStringHelper *const format, ...) {
 }
 
 size_t StringBuilder::write(const char *data, size_t data_length) {
-  if (data_length == 0) {
-    return 0;
-  }
-
   if (!valid) {
     return -1;
   }
 
-
   size_t write_index = 0;
 
   while (write_index < data_length) {
+    // Write as much data as possible to the buffer.
     size_t remaining = data_length - write_index;
     size_t write_length = maxLength - length - 1;
 
@@ -77,20 +73,24 @@ size_t StringBuilder::write(const char *data, size_t data_length) {
       write_length = remaining;
     }
 
+    // If the buffer is full, flush it and continue writing.
     if (write_length == 0) {
       if (stream_write) {
         stream_write(buffer, length, streaming);
         stream_flush();
         clear();
       } else {
+        // If the buffer is full and there is no stream to write to, the builder is invalid.
         valid = false;
         return -1;
       }
     } else {
+      // Copy the data to the buffer.
       memcpy(&buffer[length], &data[write_index], write_length);
       length += write_length;
       totalLength += write_length;
       write_index += write_length;
+      // Null-terminate the buffer.
       buffer[length] = '\0';
     }
   }
