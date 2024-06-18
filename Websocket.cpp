@@ -52,7 +52,12 @@ void WebsocketClient::poll() {
   if (webSocketReconnectEnabled && webSocketShouldReconnect && !available()) {
     if (millis() - webSocketReconnectLastAttempt > (webSocketReconnectFirstAttempt ? webSocketFirstReconnectInterval : webSocketReconnectInterval)) {
       WS_DEBUG("Reconnecting...\n");
-      websockets::WebsocketsClient::connect(host, port, path);
+      // Attempt to reconnect
+      if (isSecure) {
+        websockets::WebsocketsClient::connectSecure(host, port, path);
+      } else {
+        websockets::WebsocketsClient::connect(host, port, path);
+      }
 
       WS_DEBUG("Reconnect attempt complete\n");
       WS_DEBUG("Connection status: %d\n", websockets::WebsocketsClient::available());
@@ -71,7 +76,7 @@ void WebsocketClient::onEvent(websockets::PartialEventCallback callback) {
 }
 
 bool WebsocketClient::connect(websockets::WSInterfaceString host, int port, websockets::WSInterfaceString path) {
-  WS_DEBUG("Connecting to %s:%d%s\n", host.c_str(), port, path.c_str());
+  WS_DEBUG("Connecting to ws://%s:%d%s\n", host.c_str(), port, path.c_str());
   this->host = host;
   this->port = port;
   this->path = path;
@@ -79,5 +84,19 @@ bool WebsocketClient::connect(websockets::WSInterfaceString host, int port, webs
   webSocketShouldReconnect = true;
   webSocketHeartbeatMissed = 0;
   webSocketHeartbeatInProgress = false;
+  isSecure = false;
   return websockets::WebsocketsClient::connect(host, port, path);
+}
+
+bool WebsocketClient::connectSecure(websockets::WSInterfaceString host, int port, websockets::WSInterfaceString path) {
+  WS_DEBUG("Connecting to wss://%s:%d%s\n", host.c_str(), port, path.c_str());
+  this->host = host;
+  this->port = port;
+  this->path = path;
+  webSocketReconnectFirstAttempt = true;
+  webSocketShouldReconnect = true;
+  webSocketHeartbeatMissed = 0;
+  webSocketHeartbeatInProgress = false;
+  isSecure = true;
+  return websockets::WebsocketsClient::connectSecure(host, port, path);
 }
