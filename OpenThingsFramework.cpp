@@ -6,7 +6,7 @@
 /* How often to try to reconnect to the websocket if the connection is lost. Each reconnect attempt is blocking and has
  * a 5 second timeout.
  */
-#define WEBSOCKET_RECONNECT_INTERVAL 3000
+#define WEBSOCKET_RECONNECT_INTERVAL 5000
 
 using namespace OTF;
 
@@ -51,7 +51,8 @@ OpenThingsFramework::OpenThingsFramework(uint16_t webServerPort, const String &w
   }
   DEBUG(Serial.println(F("Initialized websocket"));)
 
-  // Try to reconnect to the websocket if the connection is lost.
+  // Try to reconnect to the websocket if the connection is lost. The first time it is connecting has a timeout of 1 second/
+  // After that, it will try to reconnect every WEBSOCKET_RECONNECT_INTERVAL milliseconds.
   webSocket->enableWebSocketReconnect(1000, WEBSOCKET_RECONNECT_INTERVAL);
   // Ping the server every 15 seconds with a timeout of 5 seconds, and treat 1 missed ping as a lost connection.
   webSocket->enableWebSocketHeartbeat(15000, 5000, 1);
@@ -158,8 +159,7 @@ void OpenThingsFramework::localServerLoop() {
     }
   }
 
-  //Serial.println(F("Filling response"));
-  // TODO: See if this works
+  // Make response stream to client
   Response res = Response();
   res.enableStream([this](const char *buffer, size_t length, bool streaming) -> void {
     localClient->write(buffer, length);
@@ -170,16 +170,13 @@ void OpenThingsFramework::localServerLoop() {
   });
   fillResponse(request, res);
 
+  // Make sure to end the stream if it was enabled.
+  res.end();
+
   if(bodyBuffer) delete[] bodyBuffer;
-  //Serial.println(F("Sending response"));
   if (res.isValid()) {
-    // char *responseString = res.toString();
-    // DEBUG(Serial.printf((char *) F("Response message is: %s\n"), responseString);)
-    // localClient->print(responseString);
     DEBUG(Serial.printf("Sent response, %d bytes\n", res.getTotalLength());)
-    res.end();
   } else {
-    res.end();
     localClient->print(F("HTTP/1.1 500 OTF error\r\nResponse string could not be built\r\n"));
     DEBUG(Serial.println(F("An error occurred while building the response string."));)
   }
@@ -210,8 +207,7 @@ void OpenThingsFramework::webSocketEventCallback(websockets::WebsocketsEvent eve
     case websockets::WebsocketsEvent::ConnectionClosed: {
       DEBUG(Serial.println(F("Websocket connection closed"));)
       if (cloudStatus == CONNECTED) {
-        /* A failed attempt to connect will also fire a WStype_DISCONNECTED event, so this check is
-        * needed to prevent the UNABLE_TO_CONNECT status to be overwritten. */
+        // Make sure the cloud status is only set to disconnected if it was previously connected.
         setCloudStatus(DISCONNECTED);
       }
       break;
@@ -255,27 +251,32 @@ void OpenThingsFramework::webSocketMessageCallback(websockets::WebsocketsMessage
 
         Request request(&message_data[HEADER_LENGTH], length - HEADER_LENGTH, true);
         Response res = Response();
+        // Make response stream to websocket
         res.enableStream([this] (const char *buffer, size_t length, bool streaming) -> void {
+          // If the websocket is not already streaming, start streaming.
           if (!streaming) {
             webSocket->stream();
           }
-            webSocket->send(buffer, length);
+
+          // Send the buffer to the websocket stream.
+          webSocket->send(buffer, length);
         }, [this] () -> void {
+          // Flush the websocket stream.
           webSocket->send("", 0);
         }, [this] () -> void {
+          // End the websocket stream.
           webSocket->end();
         });
 
         res.bprintf(F("RES: %s\r\n"), requestId);
         fillResponse(request, res);
+        // Make sure to end the stream if it was enabled.
+        res.end();
 
         if (res.isValid()) {
-          // webSocket->send(res.toString(), res.getLength());
           DEBUG(Serial.printf("Sent response, %d bytes\n", res.getTotalLength());)
-          res.end();
         } else {
           DEBUG(Serial.println(F("An error occurred building response string"));)
-          res.end();
           StringBuilder builder(100);
           builder.bprintf(F("RES: %s\r\n%s"), requestId,
                           F("HTTP/1.1 500 Internal Error\r\n\r\nAn internal error occurred"));
@@ -290,15 +291,10 @@ void OpenThingsFramework::webSocketMessageCallback(websockets::WebsocketsMessage
       break;
     }
 
-    case websockets::MessageType::Ping: {
-      DEBUG(Serial.println(F("Received a ping from the server"));)
+    case websockets::MessageType::Ping:
+    case websockets::MessageType::Pong:
+      // These do not get forwarded to the message callback.
       break;
-    }
-
-    case websockets::MessageType::Pong: {
-      DEBUG(Serial.println(F("Received a pong from the server"));)
-      break;
-    }
 
     default: {
       DEBUG(Serial.printf((char *) F("Received unsupported websocket event of type %d\n"), type);)
