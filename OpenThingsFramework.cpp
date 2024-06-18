@@ -184,8 +184,16 @@ void OpenThingsFramework::localServerLoop() {
     DEBUG(Serial.println(F("An error occurred while building the response string."));)
   }
 
+  // Properly close the client connection.
+  localClient->flush();
+  localClient->stop();
+
   // Get a new client to indicate that the previous client is no longer needed.
   localClient = localServer.acceptClient();
+  if (localClient) {
+    DEBUG(Serial.println(F("Accepted new client"));)
+    wait_to = millis()+WIFI_CONNECTION_TIMEOUT;
+  }
 
   DEBUG(Serial.println(F("Finished handling request"));)
 }
