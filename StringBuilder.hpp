@@ -4,6 +4,10 @@
 #include <Arduino.h>
 
 namespace OTF {
+  typedef std::function<void(const char *data, size_t length, bool streaming)> stream_write_t;
+  typedef std::function<void()> stream_flush_t;
+  typedef std::function<void()> stream_end_t;
+
   /**
    * Wraps a buffer to build a string with repeated calls to sprintf. If any of calls to sprintf cause an error (such
    * as exceeding the size of the internal buffer), the error will be silently swallowed and the StringBuilder will be
@@ -15,6 +19,12 @@ namespace OTF {
     size_t maxLength;
     char *buffer;
     size_t length = 0;
+    size_t totalLength = 0;
+
+    stream_write_t stream_write = nullptr;
+    stream_flush_t stream_flush = nullptr;
+    stream_end_t stream_end = nullptr;
+    bool streaming = false;
 
   protected:
     bool valid = true;
@@ -38,6 +48,22 @@ namespace OTF {
     void bprintf(const __FlashStringHelper *const format, ...);
 
     /**
+     * Raw Write to buffer
+     */
+    size_t write(const char *data, size_t length);
+
+    /**
+     * Enables streaming mode for the StringBuilder.
+     */
+    void enableStream(stream_write_t write, stream_flush_t flush, stream_end_t end);
+
+    /**
+     * @brief 
+     * Flushes the buffer and ends streaming mode.
+     */
+    bool end();
+
+    /**
      * Returns the null-terminated represented string stored in the underlying buffer.
      * @return The null-terminated represented string stored in the underlying buffer.
      */
@@ -51,6 +77,21 @@ namespace OTF {
      * be used.
      */
     bool isValid();
+
+    /**
+     * Clears the buffer and resets the StringBuilder to a valid state.
+     */
+    void clear();
+
+    /**
+     * Returns the maximum length of the buffer.
+     */
+    size_t getMaxLength() const;
+
+    /**
+     * Total length of the string built so far.
+     */
+    size_t getTotalLength() const;
   };
 }// namespace OTF
 

@@ -19,21 +19,11 @@ namespace OTF {
     LinkedMapNode<T> *head = nullptr;
     LinkedMapNode<T> *tail = nullptr;
 
-    void _add(LinkedMapNode<T> *node) {
-      if (head == nullptr) {
-        head = node;
-        tail = head;
-      } else {
-        tail->next = node;
-        tail = tail->next;
-      }
-    }
-
-    T _find(const char *key, bool keyInFlash = false) const {
+    LinkedMapNode<T> *_findNode(const char *key, bool keyInFlash = false) const {
       LinkedMapNode<T> *node = head;
       while (node != nullptr) {
         if ((keyInFlash ? strcmp_P(node->key, key) : strcmp(node->key, key)) == 0) {
-          return node->value;
+          return node;
         }
 
         node = node->next;
@@ -41,6 +31,29 @@ namespace OTF {
 
       // Indicate the key could not be found.
       return nullptr;
+    }
+
+    void _add(LinkedMapNode<T> *node, bool keyInFlash = false) {
+      LinkedMapNode<T> *existingNode = _findNode(node->key, keyInFlash);
+      if (existingNode != nullptr) {
+        // Update the value of the existing node.
+        existingNode->value = node->value;
+        delete node;
+      } else {
+        // Add the new node to the end of the list.
+        if (head == nullptr) {
+          head = node;
+          tail = head;
+        } else {
+          tail->next = node;
+          tail = tail->next;
+        }
+      }
+    }
+
+    T _find(const char *key, bool keyInFlash = false) const {
+      LinkedMapNode<T> *node = _findNode(key, keyInFlash);
+      return node != nullptr ? node->value : nullptr;
     }
 
   public:
@@ -58,7 +71,7 @@ namespace OTF {
     }
 
     void add(const __FlashStringHelper *key, T value) {
-      _add(new LinkedMapNode<T>(key, value));
+      _add(new LinkedMapNode<T>(key, value), true);
     }
 
     T find(const __FlashStringHelper *key) const {
