@@ -5,7 +5,7 @@
 #include "Response.h"
 
 #include <Arduino.h>
-#include "WebSocket.h"
+#include "Websocket.h"
 
 #if defined(ESP8266)
   #include "Esp8266LocalServer.h"
