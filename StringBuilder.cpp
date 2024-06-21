@@ -8,7 +8,7 @@ StringBuilder::StringBuilder(size_t maxLength) {
 }
 
 StringBuilder::~StringBuilder() {
-  delete buffer;
+  delete[] buffer;
 }
 
 void StringBuilder::bprintf(char *format, va_list args) {

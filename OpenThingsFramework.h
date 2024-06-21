@@ -7,13 +7,8 @@
 #include <Arduino.h>
 #include <WebSocketsClient.h>
 
-#if defined(ESP8266)
-  #include "Esp8266LocalServer.h"
-  #define LOCAL_SERVER_CLASS Esp8266LocalServer
-#elif defined(ESP32)
-  #include "Esp32LocalServer.h"
-  #define LOCAL_SERVER_CLASS Esp32LocalServer
-#endif
+#include "EspLocalServer.h"
+#define LOCAL_SERVER_CLASS EspLocalServer
 
 // The size of the buffer to store the incoming request line and headers (does not include body). Larger requests will be discarded.
 #define HEADERS_BUFFER_SIZE 1536
@@ -94,7 +89,8 @@ namespace OTF {
     void onMissingPage(callback_t callback);
 
     void loop();
-
+    void localServerBegin();
+    
     /** Returns the current status of the connection to the OpenThings Cloud server. */
     CLOUD_STATUS getCloudStatus();
 

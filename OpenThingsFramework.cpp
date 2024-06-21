@@ -20,8 +20,12 @@ OpenThingsFramework::OpenThingsFramework(uint16_t webServerPort, char *hdBuffer,
     headerBufferSize = HEADERS_BUFFER_SIZE;
   }
   missingPageCallback = defaultMissingPageCallback;
-  localServer.begin();
+  //localServer.begin();
 };
+
+void OpenThingsFramework::localServerBegin() {
+	localServer.begin();
+}
 
 OpenThingsFramework::OpenThingsFramework(uint16_t webServerPort, const String &webSocketHost, uint16_t webSocketPort,
                                          const String &deviceKey, bool useSsl, char *hdBuffer, int hdBufferSize) : OpenThingsFramework(webServerPort, hdBuffer, hdBufferSize) {
@@ -66,6 +70,8 @@ void OpenThingsFramework::onMissingPage(callback_t callback) {
 
 void OpenThingsFramework::localServerLoop() {
 
+	Serial.println("------");
+	Serial.print(ESP.getFreeHeap()); Serial.print("A");
   static unsigned long wait_to = 0; // timeout to wait for client data
   if (!wait_to) {
     localClient = localServer.acceptClient();
@@ -90,8 +96,8 @@ void OpenThingsFramework::localServerLoop() {
   // got new client data, reset wait_to to 0
   wait_to = 0;
 
-
-  // Update the timeout for each data read to ensure that the total timeout is WIFI_CONNECTION_TIMEOUT.
+	Serial.print(ESP.getFreeHeap()); Serial.print("B");
+	// Update the timeout for each data read to ensure that the total timeout is WIFI_CONNECTION_TIMEOUT.
   unsigned int timeout = millis()+WIFI_CONNECTION_TIMEOUT;
 
 
@@ -111,6 +117,9 @@ void OpenThingsFramework::localServerLoop() {
     buffer[length++] = '\n';
     if(read==1 && rc=='\r') { break; }
   }
+
+	Serial.print(ESP.getFreeHeap()); Serial.print("C");
+	
   DEBUG(Serial.printf((char *) F("Finished reading data from client. Request line + headers were %d bytes\n"), length);)
   buffer[length] = 0;
 
@@ -121,9 +130,13 @@ void OpenThingsFramework::localServerLoop() {
     return;
   }
 
+	Serial.print(ESP.getFreeHeap()); Serial.print("D");
+	
   //Serial.println(F("Parsing request"));
   Request request(buffer, length, false);
 
+	Serial.print(ESP.getFreeHeap()); Serial.print("E");
+	
   char *bodyBuffer = NULL;
   // If the request was valid, read the body and add it to the Request object.
   if (request.getType() > INVALID) {
@@ -148,24 +161,36 @@ void OpenThingsFramework::localServerLoop() {
     }
   }
 
+	Serial.print(ESP.getFreeHeap()); Serial.print("F");
   //Serial.println(F("Filling response"));
-  Response res = Response();
-  fillResponse(request, res);
+  if(1)
+  {
+		Response res = Response();
+		fillResponse(request, res);
 
-  if(bodyBuffer) delete[] bodyBuffer;
-  //Serial.println(F("Sending response"));
-  if (res.isValid()) {
-    char *responseString = res.toString();
-    DEBUG(Serial.printf((char *) F("Response message is: %s\n"), responseString);)
-    localClient->print(responseString);
-  } else {
-    localClient->print(F("HTTP/1.1 500 OTF error\r\nResponse string could not be built\r\n"));
-    DEBUG(Serial.println(F("An error occurred while building the response string."));)
-  }
+		Serial.print(ESP.getFreeHeap()); Serial.print("G");
+		
+		if(bodyBuffer) delete[] bodyBuffer;
 
+		Serial.print(ESP.getFreeHeap()); Serial.print("H");
+		
+		//Serial.println(F("Sending response"));
+		if (res.isValid()) {
+		  char *responseString = res.toString();
+		  DEBUG(Serial.printf((char *) F("Response message is: %s\n"), responseString);)
+		  localClient->print(responseString);
+		} else {
+		  localClient->print(F("HTTP/1.1 500 OTF error\r\nResponse string could not be built\r\n"));
+		  DEBUG(Serial.println(F("An error occurred while building the response string."));)
+		}
+	}
+	Serial.print(ESP.getFreeHeap()); Serial.print("I");
+	
   // Get a new client to indicate that the previous client is no longer needed.
   localClient = localServer.acceptClient();
 
+	Serial.print(ESP.getFreeHeap()); Serial.print("J");
+	Serial.println("========");
   DEBUG(Serial.println(F("Finished handling request"));)
 }
 
