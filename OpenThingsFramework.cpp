@@ -20,7 +20,6 @@ OpenThingsFramework::OpenThingsFramework(uint16_t webServerPort, char *hdBuffer,
     headerBufferSize = HEADERS_BUFFER_SIZE;
   }
   missingPageCallback = defaultMissingPageCallback;
-  //localServer.begin();
 };
 
 void OpenThingsFramework::localServerBegin() {
@@ -81,8 +80,6 @@ void OpenThingsFramework::onMissingPage(callback_t callback) {
 
 void OpenThingsFramework::localServerLoop() {
 
-	Serial.println("------");
-	Serial.print(ESP.getFreeHeap()); Serial.print("A");
   static unsigned long wait_to = 0; // timeout to wait for client data
   if (!wait_to) {
     localClient = localServer.acceptClient();
@@ -107,7 +104,6 @@ void OpenThingsFramework::localServerLoop() {
   // got new client data, reset wait_to to 0
   wait_to = 0;
 
-	Serial.print(ESP.getFreeHeap()); Serial.print("B");
 	// Update the timeout for each data read to ensure that the total timeout is WIFI_CONNECTION_TIMEOUT.
   unsigned int timeout = millis()+WIFI_CONNECTION_TIMEOUT;
 
@@ -129,8 +125,6 @@ void OpenThingsFramework::localServerLoop() {
     if(read==1 && rc=='\r') { break; }
   }
 
-	Serial.print(ESP.getFreeHeap()); Serial.print("C");
-	
   DEBUG(Serial.printf((char *) F("Finished reading data from client. Request line + headers were %d bytes\n"), length);)
   buffer[length] = 0;
 
@@ -141,13 +135,9 @@ void OpenThingsFramework::localServerLoop() {
     return;
   }
 
-	Serial.print(ESP.getFreeHeap()); Serial.print("D");
-	
   //Serial.println(F("Parsing request"));
   Request request(buffer, length, false);
 
-	Serial.print(ESP.getFreeHeap()); Serial.print("E");
-	
   char *bodyBuffer = NULL;
   // If the request was valid, read the body and add it to the Request object.
   if (request.getType() > INVALID) {
@@ -205,8 +195,6 @@ void OpenThingsFramework::localServerLoop() {
     wait_to = millis()+WIFI_CONNECTION_TIMEOUT;
   }
 
-	Serial.print(ESP.getFreeHeap()); Serial.print("J");
-	Serial.println("========");
   DEBUG(Serial.println(F("Finished handling request"));)
 }
 
