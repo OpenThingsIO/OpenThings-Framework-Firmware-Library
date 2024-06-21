@@ -57,7 +57,7 @@ void StringBuilder::bprintf(const __FlashStringHelper *const format, ...) {
   va_end(args);
 }
 
-size_t StringBuilder::write(const char *data, size_t data_length) {
+size_t StringBuilder::_write(const char *data, size_t data_length, bool use_pgm) {
   if (!valid) {
     return -1;
   }
@@ -86,7 +86,11 @@ size_t StringBuilder::write(const char *data, size_t data_length) {
       }
     } else {
       // Copy the data to the buffer.
-      memcpy(&buffer[length], &data[write_index], write_length);
+      if (use_pgm) {
+        memcpy_P(&buffer[length], &data[write_index], write_length);
+      } else {
+        memcpy(&buffer[length], &data[write_index], write_length);
+      }
       length += write_length;
       totalLength += write_length;
       write_index += write_length;
@@ -96,6 +100,14 @@ size_t StringBuilder::write(const char *data, size_t data_length) {
   }
 
   return data_length;
+}
+
+size_t StringBuilder::write(const char *data, size_t data_length) {
+  return _write(data, data_length, false);
+}
+
+size_t StringBuilder::write_P(const __FlashStringHelper *data, size_t data_length) {
+  return _write((const char *) data, data_length, true);
 }
 
 void StringBuilder::enableStream(stream_write_t write, stream_flush_t flush, stream_end_t end) {
