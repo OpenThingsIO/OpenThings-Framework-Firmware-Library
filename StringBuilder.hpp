@@ -26,6 +26,11 @@ namespace OTF {
     stream_end_t stream_end = nullptr;
     bool streaming = false;
 
+    /**
+     * Internal write function
+     */
+    size_t _write(const char *data, size_t data_length, bool use_pgm);
+
   protected:
     bool valid = true;
 
@@ -51,6 +56,11 @@ namespace OTF {
      * Raw Write to buffer
      */
     size_t write(const char *data, size_t length);
+
+    /**
+     * Raw Write to buffer from PROGMEM
+     */
+    size_t write_P(const __FlashStringHelper *data, size_t length);
 
     /**
      * Enables streaming mode for the StringBuilder.
