@@ -106,7 +106,7 @@ size_t StringBuilder::write(const char *data, size_t data_length) {
   return _write(data, data_length, false);
 }
 
-size_t StringBuilder::write_P(const __FlashStringHelper *data, size_t data_length) {
+size_t StringBuilder::write_P(const __FlashStringHelper *const data, size_t data_length) {
   return _write((const char *) data, data_length, true);
 }
 
