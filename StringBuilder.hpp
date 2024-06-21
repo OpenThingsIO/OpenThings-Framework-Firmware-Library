@@ -60,7 +60,7 @@ namespace OTF {
     /**
      * Raw Write to buffer from PROGMEM
      */
-    size_t write_P(const __FlashStringHelper *data, size_t length);
+    size_t write_P(const __FlashStringHelper *const data, size_t length);
 
     /**
      * Enables streaming mode for the StringBuilder.
