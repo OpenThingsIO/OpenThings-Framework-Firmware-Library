@@ -48,6 +48,10 @@ void Esp32LocalClient::print(const __FlashStringHelper *data) {
   client.print(data);
 }
 
+size_t Esp32LocalClient::write(const char *buffer, size_t length) {
+  return client.write((const uint8_t *)buffer, length);
+}
+
 int Esp32LocalClient::peek() {
   return client.peek();
 }
@@ -55,4 +59,13 @@ int Esp32LocalClient::peek() {
 void Esp32LocalClient::setTimeout(int timeout) {
   client.setTimeout(timeout);
 }
+
+void Esp32LocalClient::flush() {
+  client.flush();
+}
+
+void Esp32LocalClient::stop() {
+  client.stop();
+}
+
 #endif

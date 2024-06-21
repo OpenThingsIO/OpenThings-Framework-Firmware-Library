@@ -1,0 +1,9 @@
+{
+    "name": "OpenThings-Framework-Firmware-Library",
+    "version": "0.1.2",
+    "author": "rayshobby",
+    "description": "OpenThings Framework Library",
+    "dependencies": {
+        "ArduinoWebsockets": "gilmaimon/ArduinoWebsockets@^0.5.4"
+    }
+}

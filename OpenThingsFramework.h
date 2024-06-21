@@ -5,7 +5,7 @@
 #include "Response.h"
 
 #include <Arduino.h>
-#include <WebSocketsClient.h>
+#include "Websocket.h"
 
 #include "EspLocalServer.h"
 #define LOCAL_SERVER_CLASS EspLocalServer
@@ -31,7 +31,7 @@ namespace OTF {
   private:
     LOCAL_SERVER_CLASS localServer = LOCAL_SERVER_CLASS(80);
     LocalClient *localClient = nullptr;
-    WebSocketsClient *webSocket = nullptr;
+    WebsocketClient *webSocket = nullptr;
     LinkedMap<callback_t> callbacks;
     callback_t missingPageCallback;
     CLOUD_STATUS cloudStatus = NOT_ENABLED;
@@ -39,7 +39,8 @@ namespace OTF {
     char *headerBuffer = NULL;
     int headerBufferSize = 0;
 
-    void webSocketCallback(WStype_t type, uint8_t *payload, size_t length);
+    void webSocketMessageCallback(websockets::WebsocketsMessage message);
+    void webSocketEventCallback(websockets::WebsocketsEvent event, String data);
 
     void fillResponse(const Request &req, Response &res);
     void localServerLoop();

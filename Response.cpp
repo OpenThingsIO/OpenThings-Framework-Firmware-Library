@@ -103,3 +103,29 @@ void Response::writeBodyChunk(const __FlashStringHelper *const format, ...) {
   bprintf(format, args);
   va_end(args);
 }
+
+void Response::writeBodyData(const char *data, size_t length) {
+  if (responseStatus < STATUS_WRITTEN) {
+    valid = false;
+    return;
+  }
+  if (responseStatus != BODY_WRITTEN) {
+    bprintf((char *) "\r\n");
+    responseStatus = BODY_WRITTEN;
+  }
+
+  write(data, length);
+}
+
+void Response::writeBodyData(const __FlashStringHelper *const data, size_t length) {
+  if (responseStatus < STATUS_WRITTEN) {
+    valid = false;
+    return;
+  }
+  if (responseStatus != BODY_WRITTEN) {
+    bprintf((char *) "\r\n");
+    responseStatus = BODY_WRITTEN;
+  }
+
+  write_P(data, length);
+}
