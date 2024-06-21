@@ -40,16 +40,20 @@ size_t Esp8266LocalClient::readBytesUntil(char terminator, char *buffer, size_t 
   return client.readBytesUntil(terminator, buffer, length);
 }
 
-size_t Esp8266LocalClient::write(const char *buffer, size_t size) {
-  return client.write((const uint8_t *)buffer, size);
-}
-
 void Esp8266LocalClient::print(const char *data) {
   client.print(data);
 }
 
 void Esp8266LocalClient::print(const __FlashStringHelper *data) {
   client.print(data);
+}
+
+size_t Esp8266LocalClient::write(const char *buffer, size_t size) {
+  return client.write((const uint8_t *)buffer, size);
+}
+
+size_t Esp8266LocalClient::write(const __FlashStringHelper *buffer, size_t size) {
+  return client.write_P((const char*) buffer, size);
 }
 
 int Esp8266LocalClient::peek() {

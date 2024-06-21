@@ -25,10 +25,13 @@ namespace OTF {
     virtual void print(const char *data) = 0;
 
     /** Prints a null-terminated string to the response stream. This method may be called multiple times before the stream is closed. */
-    virtual void print(const __FlashStringHelper *data) = 0;
+    virtual void print(const __FlashStringHelper *const data) = 0;
 
     /** Writes `size` bytes from `buffer` to the response stream. */
     virtual size_t write(const char *buffer, size_t size) = 0;
+
+    /** Writes `size` bytes from `buffer` to the response stream from program memory. */
+    virtual size_t write(const __FlashStringHelper *buffer, size_t size) = 0;
 
     /** Returns the next character in the request stream (without advancing the stream), or returns -1 if no character is available. */
     virtual int peek() = 0;
