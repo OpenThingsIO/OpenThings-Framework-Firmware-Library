@@ -24,7 +24,9 @@ namespace OTF {
     size_t readBytes(char *buffer, size_t length);
     size_t readBytesUntil(char terminator, char *buffer, size_t length);
     void print(const char *data);
-    void print(const __FlashStringHelper *data);
+    void print(const __FlashStringHelper *const data);
+    size_t write(const char *buffer, size_t size);
+    size_t write(const __FlashStringHelper *buffer, size_t size);
     int peek();
     void setTimeout(int timeout);
     void flush();

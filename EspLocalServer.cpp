@@ -48,6 +48,14 @@ void EspLocalClient::print(const __FlashStringHelper *data) {
   client.print(data);
 }
 
+size_t EspLocalClient::write(const char *buffer, size_t size) {
+  return client.write(buffer, size);
+}
+
+size_t EspLocalClient::write(const __FlashStringHelper *const buffer, size_t size) {
+  return client.write_P((const char*) buffer, size);
+}
+
 int EspLocalClient::peek() {
   return client.peek();
 }
