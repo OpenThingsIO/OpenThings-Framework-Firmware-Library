@@ -60,6 +60,7 @@ namespace OTF {
     void writeBodyChunk(const __FlashStringHelper *const format, ...);
 
     void writeBodyData(const char *data, size_t max_length);
+    void writeBodyData(const __FlashStringHelper *const data);
   };
 }// namespace OTF
 #endif
