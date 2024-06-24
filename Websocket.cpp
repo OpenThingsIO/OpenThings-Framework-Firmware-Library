@@ -1,102 +1,73 @@
 #include "Websocket.h"
 
-void WebsocketClient::enableWebSocketHeartbeat(unsigned long interval, unsigned long timeout, unsigned long maxMissed) {
-  webSocketHeartbeatInterval = interval;
-  webSocketHeartbeatTimeout = timeout;
-  webSocketHeartbeatMaxMissed = maxMissed;
-  webSocketHeartbeatEnabled = true;
+void WebsocketClient::enableHeartbeat(unsigned long interval, unsigned long timeout, uint8_t maxMissed) {
+  WebSocketsClient::enableHeartbeat(interval, timeout, maxMissed);
 }
 
-void WebsocketClient::disableWebSocketHeartbeat() {
-  webSocketHeartbeatEnabled = false;
+void WebsocketClient::disableHeartbeat() {
+  WebSocketsClient::disableHeartbeat();
 }
 
-void WebsocketClient::enableWebSocketReconnect(unsigned long firstInterval, unsigned long interval) {
-    webSocketFirstReconnectInterval = firstInterval;
-  webSocketReconnectInterval = interval;
-  webSocketReconnectEnabled = true;
-}
-
-void WebsocketClient::disableWebSocketReconnect() {
-  webSocketReconnectEnabled = false;
+void WebsocketClient::setReconnectInterval(unsigned long interval) {
+  WebSocketsClient::setReconnectInterval(interval);
 }
 
 void WebsocketClient::poll() {
-  websockets::WebsocketsClient::poll();
-  if (webSocketHeartbeatEnabled && available()) {
-    if (!webSocketHeartbeatInProgress && (millis() - webSocketHeartbeatLastSent > webSocketHeartbeatInterval)) {
-      if (webSocketHeartbeatMissed >= webSocketHeartbeatMaxMissed) {
-        // Too many missed heartbeats, close the connection
-        WS_DEBUG("Too many missed heartbeats, closing connection\n");
-        webSocketReconnectLastAttempt = 0;
-        webSocketHeartbeatMissed = 0;
-        websockets::WebsocketsClient::close();
-        return;
-      }
-
-      WS_DEBUG("Sending ping\n");
-      ping();
-      webSocketHeartbeatLastSent = millis();
-      webSocketHeartbeatInProgress = true;
-    }
-
-    if (webSocketHeartbeatInProgress && (millis() - webSocketHeartbeatLastSent > webSocketHeartbeatTimeout)) {
-      // Heartbeat timeout
-      WS_DEBUG("Heartbeat timeout\n");
-      webSocketHeartbeatMissed++;
-      webSocketHeartbeatInProgress = false;
-      return;
-    }
-  }
-
-  if (webSocketReconnectEnabled && webSocketShouldReconnect && !available()) {
-    if (millis() - webSocketReconnectLastAttempt > (webSocketReconnectFirstAttempt ? webSocketFirstReconnectInterval : webSocketReconnectInterval)) {
-      WS_DEBUG("Reconnecting...\n");
-      // Attempt to reconnect
-      if (isSecure) {
-        websockets::WebsocketsClient::connectSecure(host, port, path);
-      } else {
-        websockets::WebsocketsClient::connect(host, port, path);
-      }
-
-      WS_DEBUG("Reconnect attempt complete\n");
-      WS_DEBUG("Connection status: %d\n", websockets::WebsocketsClient::available());
-      webSocketReconnectLastAttempt = millis();
-    }
-  }
-
-  websockets::WebsocketsClient::poll();
+  WebSocketsClient::loop();
 }
 
-void WebsocketClient::onEvent(websockets::PartialEventCallback callback) {
+void WebsocketClient::onEvent(WebSocketEventCallback callback) {
   WS_DEBUG("Setting event callback\n");
-  this->eventCallback = [callback](WebsocketsClient &, websockets::WebsocketsEvent event, websockets::WSInterfaceString data) {
-    callback(event, data);
-  };
+  this->eventCallback = callback;
 }
 
-bool WebsocketClient::connect(websockets::WSInterfaceString host, int port, websockets::WSInterfaceString path) {
+void WebsocketClient::connect(WSInterfaceString host, int port, WSInterfaceString path) {
   WS_DEBUG("Connecting to ws://%s:%d%s\n", host.c_str(), port, path.c_str());
-  this->host = host;
-  this->port = port;
-  this->path = path;
-  webSocketReconnectFirstAttempt = true;
-  webSocketShouldReconnect = true;
-  webSocketHeartbeatMissed = 0;
-  webSocketHeartbeatInProgress = false;
-  isSecure = false;
-  return websockets::WebsocketsClient::connect(host, port, path);
+  WebSocketsClient::begin(host, port, path);
 }
 
-bool WebsocketClient::connectSecure(websockets::WSInterfaceString host, int port, websockets::WSInterfaceString path) {
-  WS_DEBUG("Connecting to wss://%s:%d%s\n", host.c_str(), port, path.c_str());
-  this->host = host;
-  this->port = port;
-  this->path = path;
-  webSocketReconnectFirstAttempt = true;
-  webSocketShouldReconnect = true;
-  webSocketHeartbeatMissed = 0;
-  webSocketHeartbeatInProgress = false;
-  isSecure = true;
-  return websockets::WebsocketsClient::connectSecure(host, port, path);
+void WebsocketClient::connectSecure(WSInterfaceString host, int port, WSInterfaceString path) {
+  WebSocketsClient::beginSSL(host.c_str(), port, path.c_str());
+}
+
+bool WebsocketClient::stream() {
+  if (clientIsConnected(&_client)) {
+    isStreaming = sendFrame(&_client, WSop_text, NULL, 0, false, false);
+  } else {
+    isStreaming = false;
+  }
+
+  return isStreaming;
+}
+
+bool WebsocketClient::send(uint8_t *payload, size_t length, bool headerToPayload = false) {
+  WS_DEBUG("Sending message of length %d\n", length);
+
+  if (length == 0) {
+    length = strlen((const char *) payload);
+  }
+
+  if (clientIsConnected(&_client)) {
+    if (isStreaming) {
+      return sendFrame(&_client, WSop_continuation, payload, length, false, headerToPayload);
+    } else {
+      return sendFrame(&_client, WSop_text, payload, length, true, headerToPayload);
+    }
+  }
+
+  return false;
+}
+
+bool WebsocketClient::send(const char *payload, size_t length, bool headerToPayload = false) {
+  return send((uint8_t *) payload, length, headerToPayload);
+}
+
+bool WebsocketClient::end() {
+  if (!isStreaming) {
+    return true;
+  }
+
+  bool res = sendFrame(&_client, WSop_continuation, NULL, 0, true, false);
+  isStreaming = !res;
+  return res;
 }

@@ -30,32 +30,24 @@ OpenThingsFramework::OpenThingsFramework(uint16_t webServerPort, const String &w
   webSocket = new WebsocketClient();
 
   // Wrap the member function in a static function.
-  webSocket->onEvent([this](websockets::WebsocketsEvent event, String data) -> void {
+  webSocket->onEvent([this](WSEvent_t type, uint8_t *payload, size_t length) -> void {
     DEBUG(Serial.printf((char *) F("Received websocket event of type %d\n"), event);)
-    webSocketEventCallback(event, data);
+    webSocketEventCallback(type, payload, length);
   });
 
-  // Wrap the member function in a static function.
-  webSocket->onMessage([this](websockets::WebsocketsMessage message) -> void {
-    DEBUG(Serial.println(F("Received websocket message"));)
-    webSocketMessageCallback(message);
-  });
-
-  bool connected;
   if (useSsl) {
     DEBUG(Serial.println(F("Connecting to websocket with SSL"));)
-    // connected = webSocket->connectSecure(webSocketHost, webSocketPort, "/socket/v1?deviceKey=" + deviceKey);
+    // webSocket->connectSecure(webSocketHost, webSocketPort, "/socket/v1?deviceKey=" + deviceKey);
   } else {
     DEBUG(Serial.println(F("Connecting to websocket without SSL"));)
-    connected = webSocket->connect(webSocketHost, webSocketPort, "/socket/v1?deviceKey=" + deviceKey);
+    webSocket->connect(webSocketHost, webSocketPort, "/socket/v1?deviceKey=" + deviceKey);
   }
   DEBUG(Serial.println(F("Initialized websocket"));)
 
-  // Try to reconnect to the websocket if the connection is lost. The first time it is connecting has a timeout of 1 second/
-  // After that, it will try to reconnect every WEBSOCKET_RECONNECT_INTERVAL milliseconds.
-  webSocket->enableWebSocketReconnect(1000, WEBSOCKET_RECONNECT_INTERVAL);
+  // Try to reconnect to the websocket if the connection is lost.
+  webSocket->setReconnectInterval(WEBSOCKET_RECONNECT_INTERVAL);
   // Ping the server every 15 seconds with a timeout of 5 seconds, and treat 1 missed ping as a lost connection.
-  webSocket->enableWebSocketHeartbeat(15000, 5000, 1);
+  webSocket->enableHeartbeat(15000, 5000, 1);
 }
 
 char *makeMapKey(StringBuilder *sb, HTTPMethod method, const char *path) {
@@ -202,9 +194,9 @@ void OpenThingsFramework::loop() {
   }
 }
 
-void OpenThingsFramework::webSocketEventCallback(websockets::WebsocketsEvent event, String data) {
-  switch (event) {
-    case websockets::WebsocketsEvent::ConnectionClosed: {
+void OpenThingsFramework::webSocketEventCallback(WSEvent_t type, uint8_t *payload, size_t length) {
+  switch (type) {
+    case WSEvent_DISCONNECTED: {
       DEBUG(Serial.println(F("Websocket connection closed"));)
       if (cloudStatus == CONNECTED) {
         // Make sure the cloud status is only set to disconnected if it was previously connected.
@@ -213,35 +205,29 @@ void OpenThingsFramework::webSocketEventCallback(websockets::WebsocketsEvent eve
       break;
     }
 
-    case websockets::WebsocketsEvent::ConnectionOpened: {
+    case WSEvent_CONNECTED: {
       DEBUG(Serial.println(F("Websocket connection opened"));)
       setCloudStatus(CONNECTED);
       break;
     }
 
-    case websockets::WebsocketsEvent::GotPing: {
+    case WSEvent_PING: {
       DEBUG(Serial.println(F("Received a ping from the server"));)
       break;
     }
 
-    case websockets::WebsocketsEvent::GotPong: {
+    case WSEvent_PONG: {
       DEBUG(Serial.println(F("Received a pong from the server"));)
       break;
     }
-  }
-}
 
-void OpenThingsFramework::webSocketMessageCallback(websockets::WebsocketsMessage message) {
-  websockets::MessageType type = message.type();
-  switch (type) {
-    case websockets::MessageType::Text: {
+    case WSEvent_TEXT: {
       #define PREFIX_LENGTH 5
       #define ID_LENGTH 4
       // Length of the prefix, request ID, carriage return, and line feed.
       #define HEADER_LENGTH PREFIX_LENGTH + ID_LENGTH + 2
 
-      char *message_data = (char*) message.c_str();
-      size_t length = message.length();
+      char *message_data = (char*) payload;
 
       if (strncmp_P(message_data, (char *) F("FWD: "), PREFIX_LENGTH) == 0) {
         DEBUG(Serial.println(F("Message is a forwarded request."));)
@@ -290,12 +276,7 @@ void OpenThingsFramework::webSocketMessageCallback(websockets::WebsocketsMessage
       }
       break;
     }
-
-    case websockets::MessageType::Ping:
-    case websockets::MessageType::Pong:
-      // These do not get forwarded to the message callback.
-      break;
-
+    
     default: {
       DEBUG(Serial.printf((char *) F("Received unsupported websocket event of type %d\n"), type);)
       break;
