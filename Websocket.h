@@ -35,6 +35,10 @@ public:
     // Set up a callback to handle incoming pings
     WebSocketsClient::onEvent([this](WStype_t type, uint8_t *payload, size_t length) {
       switch (type) {
+        case WStype_ERROR:
+          WS_DEBUG("Error!\n");
+          _callback(WSEvent_ERROR, payload, length);
+          break;
         case WStype_DISCONNECTED:
           WS_DEBUG("Disconnected!\n");
           _callback(WSEvent_DISCONNECTED, payload, length);
@@ -58,6 +62,9 @@ public:
         case WStype_PONG:
           WS_DEBUG("get pong\n");
           _callback(WSEvent_PONG, payload, length);
+          break;
+        default:
+          WS_DEBUG("Unknown event type: %d\n", type);
           break;
       }
     });

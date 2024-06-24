@@ -40,7 +40,7 @@ bool WebsocketClient::stream() {
   return isStreaming;
 }
 
-bool WebsocketClient::send(uint8_t *payload, size_t length, bool headerToPayload = false) {
+bool WebsocketClient::send(uint8_t *payload, size_t length, bool headerToPayload) {
   WS_DEBUG("Sending message of length %d\n", length);
 
   if (length == 0) {
@@ -58,7 +58,7 @@ bool WebsocketClient::send(uint8_t *payload, size_t length, bool headerToPayload
   return false;
 }
 
-bool WebsocketClient::send(const char *payload, size_t length, bool headerToPayload = false) {
+bool WebsocketClient::send(const char *payload, size_t length, bool headerToPayload) {
   return send((uint8_t *) payload, length, headerToPayload);
 }
 
