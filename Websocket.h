@@ -3,6 +3,7 @@
 
 #include <WebSocketsClient.h>
 
+// #define ENABLE_DEBUG
 #ifdef ENABLE_DEBUG
 #define WS_DEBUG(...)          \
   Serial.print("Websocket: "); \
