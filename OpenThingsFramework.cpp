@@ -153,7 +153,7 @@ void OpenThingsFramework::localServerLoop() {
 
   // Make response stream to client
   Response res = Response();
-  res.enableStream([this](const char *buffer, size_t length, bool streaming) -> void {
+  res.enableStream([this](const char *buffer, size_t length, bool first_message) -> void {
     localClient->write(buffer, length);
   }, [this]() -> void {
     localClient->flush();
@@ -238,9 +238,10 @@ void OpenThingsFramework::webSocketEventCallback(WSEvent_t type, uint8_t *payloa
         Request request(&message_data[HEADER_LENGTH], length - HEADER_LENGTH, true);
         Response res = Response();
         // Make response stream to websocket
-        res.enableStream([this] (const char *buffer, size_t length, bool streaming) -> void {
+        res.enableStream([this] (const char *buffer, size_t length, bool first_message) -> void {
           // If the websocket is not already streaming, start streaming.
-          if (!streaming) {
+          if (first_message) {
+            WS_DEBUG("Starting stream\n");
             webSocket->stream();
           }
 

@@ -3,7 +3,7 @@
 
 #include <WebSocketsClient.h>
 
-#ifdef DEBUG
+#ifdef ENABLE_DEBUG
 #define WS_DEBUG(...)          \
   Serial.print("Websocket: "); \
   Serial.printf(__VA_ARGS__)
@@ -29,7 +29,7 @@ typedef enum {
 
 typedef std::function<void(WSEvent_t type, uint8_t * payload, size_t length)> WebSocketEventCallback;
 
-class WebsocketClient : private WebSocketsClient {
+class WebsocketClient : protected WebSocketsClient {
 public:
   WebsocketClient() : WebSocketsClient() {
     // Set up a callback to handle incoming pings

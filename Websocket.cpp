@@ -31,8 +31,13 @@ void WebsocketClient::connectSecure(WSInterfaceString host, int port, WSInterfac
 }
 
 bool WebsocketClient::stream() {
+  if (isStreaming) {
+    WS_DEBUG("Already streaming\n");
+    return false;
+  }
+
   if (clientIsConnected(&_client)) {
-    isStreaming = sendFrame(&_client, WSop_text, NULL, 0, false, false);
+    isStreaming = sendFrame(&_client, WSop_text, (uint8_t *)"", 0, false, false);
   } else {
     isStreaming = false;
   }
@@ -67,7 +72,9 @@ bool WebsocketClient::end() {
     return true;
   }
 
-  bool res = sendFrame(&_client, WSop_continuation, NULL, 0, true, false);
+  WS_DEBUG("Ending stream\n");
+
+  bool res = sendFrame(&_client, WSop_continuation, (uint8_t *)"", 0, true, false);
   isStreaming = !res;
   return res;
 }

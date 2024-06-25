@@ -25,6 +25,7 @@ namespace OTF {
     stream_flush_t stream_flush = nullptr;
     stream_end_t stream_end = nullptr;
     bool streaming = false;
+    bool first_message = true;
 
     /**
      * Internal write function
