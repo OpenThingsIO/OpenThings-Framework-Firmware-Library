@@ -39,8 +39,7 @@ namespace OTF {
     char *headerBuffer = NULL;
     int headerBufferSize = 0;
 
-    void webSocketMessageCallback(websockets::WebsocketsMessage message);
-    void webSocketEventCallback(websockets::WebsocketsEvent event, String data);
+    void webSocketEventCallback(WSEvent_t type, uint8_t *payload, size_t length);
 
     void fillResponse(const Request &req, Response &res);
     void localServerLoop();
