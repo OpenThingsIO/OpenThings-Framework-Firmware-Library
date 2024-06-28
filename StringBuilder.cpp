@@ -20,9 +20,10 @@ void StringBuilder::bprintf(char *format, va_list args) {
   size_t res = vsnprintf(&buffer[length], maxLength - length, format, args);
 
 
-  if (stream_write && ((res >= maxLength) || (length + res >= maxLength))) {
+  if (streaming && ((res >= maxLength) || (length + res >= maxLength))) {
     // If in streaming mode flush the buffer and continue writing if the data doesn't fit.
     stream_write(buffer, length, streaming);
+    first_message = false;
     stream_flush();
     clear();
     res = vsnprintf(&buffer[length], maxLength - length, format, args);
@@ -75,8 +76,9 @@ size_t StringBuilder::_write(const char *data, size_t data_length, bool use_pgm)
 
     // If the buffer is full, flush it and continue writing.
     if (write_length == 0) {
-      if (stream_write) {
+      if (streaming) {
         stream_write(buffer, length, streaming);
+        first_message = false;
         stream_flush();
         clear();
       } else {
@@ -111,6 +113,8 @@ size_t StringBuilder::write_P(const __FlashStringHelper *const data, size_t data
 }
 
 void StringBuilder::enableStream(stream_write_t write, stream_flush_t flush, stream_end_t end) {
+  streaming = true;
+  first_message = true;
   stream_write = write;
   stream_flush = flush;
   stream_end = end;

@@ -4,6 +4,6 @@
     "author": "rayshobby",
     "description": "OpenThings Framework Library",
     "dependencies": {
-        "ArduinoWebsockets": "gilmaimon/ArduinoWebsockets@^0.5.4"
+        "WebSockets": "links2004/WebSockets@^2.4.2"
     }
 }
