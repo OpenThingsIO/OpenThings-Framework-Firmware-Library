@@ -14,6 +14,10 @@
   #include "Esp32LocalServer.h"
   #define LOCAL_SERVER_CLASS Esp32LocalServer
 #endif
+#else
+#include <stdint.h>
+#include "LinuxLocalServer.h"
+#define LOCAL_SERVER_CLASS LinuxLocalServer
 #endif
 
 #include "Websocket.h"
@@ -85,6 +89,7 @@ namespace OTF {
      */
     void on(const char *path, callback_t callback, HTTPMethod method = HTTP_ANY);
 
+#if defined(ARDUINO)
     /**
      * Registers a callback function to run when a request is made to the specified path. The callback function will
      * be passed an OpenThingsRequest, and must return an OpenThingsResponse.
@@ -92,6 +97,7 @@ namespace OTF {
      * @param callback
      */
     void on(const __FlashStringHelper *path, callback_t callback, HTTPMethod method = HTTP_ANY);
+#endif
 
     /** Registers a callback function to run when a request is received but its path does not match a registered callback. */
     void onMissingPage(callback_t callback);

@@ -2,6 +2,7 @@
 #define OTF_LOCALSERVER_H
 
 #include <stdint.h>
+#include <stddef.h>
 
 namespace OTF {
   class LocalClient {
@@ -24,8 +25,10 @@ namespace OTF {
     /** Prints a null-terminated string to the response stream. This method may be called multiple times before the stream is closed. */
     virtual void print(const char *data) = 0;
 
+#if defined(ARDUINO)
     /** Prints a null-terminated string to the response stream. This method may be called multiple times before the stream is closed. */
     virtual void print(const __FlashStringHelper *data) = 0;
+#endif
 
     /** Writes `size` bytes from `buffer` to the response stream. */
     virtual size_t write(const char *buffer, size_t size) = 0;

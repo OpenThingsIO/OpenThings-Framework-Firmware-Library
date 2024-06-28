@@ -83,15 +83,15 @@ bool WebsocketClient::end() {
 #else
 
 void WebsocketClient::enableHeartbeat(unsigned long interval, unsigned long timeout, uint8_t maxMissed) {
-  WebSocketsClient::enableHeartbeat(interval, timeout, maxMissed);
+//   WebSocketsClient::enableHeartbeat(interval, timeout, maxMissed);
 }
 
 void WebsocketClient::disableHeartbeat() {
-  WebSocketsClient::disableHeartbeat();
+//   WebSocketsClient::disableHeartbeat();
 }
 
 void WebsocketClient::setReconnectInterval(unsigned long interval) {
-  WebSocketsClient::setReconnectInterval(interval);
+//   WebSocketsClient::setReconnectInterval(interval);
 }
 
 void WebsocketClient::poll() {
@@ -104,8 +104,9 @@ void WebsocketClient::onEvent(WebSocketEventCallback callback) {
 }
 
 void WebsocketClient::connect(WSInterfaceString host, int port, WSInterfaceString path) {
-  WS_DEBUG("Connecting to ws://%s:%d%s\n", host.c_str(), port, path.c_str());
-  const char *s_url = sprintf("ws://%s:%d%s", host.c_str(), port, path.c_str());
+  WS_DEBUG("Connecting to ws://%s:%d%s\n", host, port, path);
+  char s_url[100] = {0};
+  sprintf(s_url, "ws://%s:%d%s", host, port, path);
   c = mg_ws_connect(&mgr, s_url, fn, &done, NULL);     // Create client
 }
 
@@ -137,7 +138,7 @@ bool WebsocketClient::send(uint8_t *payload, size_t length, bool headerToPayload
     length = strlen((const char *) payload);
   }
 
-  if (clientIsConnected(&_client)) {
+  if (c) {
     if (isStreaming) {
       return sendFrame(&_client, WSop_continuation, payload, length, false, headerToPayload);
     } else {

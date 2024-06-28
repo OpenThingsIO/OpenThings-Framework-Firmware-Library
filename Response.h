@@ -53,8 +53,8 @@ namespace OTF {
     void writeHeader(const __FlashStringHelper *const name, const __FlashStringHelper *const value);
     void writeHeader(const __FlashStringHelper *const name, int value);
     #else
-    void writeHeader(char *const name, char *const value);
-    void writeHeader(const __FlashStringHelper *const name, char *const value);
+    void writeHeader(const char *name, const char *const value);
+    void writeHeader(const char *name, int value);
     #endif
 
     /**

@@ -1,5 +1,6 @@
 #include "OpenThingsFramework.h"
 #include "StringBuilder.hpp"
+#include <string>
 
 // The timeout for reading and parsing incoming requests.
 #define WIFI_CONNECTION_TIMEOUT 1500
@@ -40,7 +41,12 @@ OpenThingsFramework::OpenThingsFramework(uint16_t webServerPort, const String &w
     // webSocket->connectSecure(webSocketHost, webSocketPort, "/socket/v1?deviceKey=" + deviceKey);
   } else {
     DEBUG(Serial.println(F("Connecting to websocket without SSL"));)
+    #if defined(ARDUINO)
     webSocket->connect(webSocketHost, webSocketPort, "/socket/v1?deviceKey=" + deviceKey);
+    #else
+    std::string path = std::string("/socket/v1?deviceKey=") + deviceKey;
+    webSocket->connect(webSocketHost, webSocketPort, path.c_str());
+    #endif
   }
   DEBUG(Serial.println(F("Initialized websocket"));)
 
@@ -59,9 +65,11 @@ void OpenThingsFramework::on(const char *path, callback_t callback, HTTPMethod m
   callbacks.add(makeMapKey(new StringBuilder(KEY_MAX_LENGTH), method, path), callback);
 }
 
+#if defined(ARDUINO)
 void OpenThingsFramework::on(const __FlashStringHelper *path, callback_t callback, HTTPMethod method) {
   callbacks.add(makeMapKey(new StringBuilder(KEY_MAX_LENGTH), method, (char *) path), callback);
 }
+#endif
 
 void OpenThingsFramework::onMissingPage(callback_t callback) {
   missingPageCallback = callback;
@@ -133,7 +141,11 @@ void OpenThingsFramework::localServerLoop() {
     char *contentLengthString = request.getHeader(F("content-length"));
     // If the header was not specified, the message has no body.
     if (contentLengthString != nullptr) {
+        #if defined(ARDUINO)
       long contentLength = String(contentLengthString).toInt();
+      #else
+      long contentLength = atol(contentLengthString);
+      #endif
       // If the header specifies a length of 0 or could not be parsed, the message has no body.
       if (contentLength > 0) {
         // Read the body from the client.

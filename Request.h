@@ -9,6 +9,7 @@
 #endif
 
 #include "LinkedMap.h"
+#include <stddef.h>
 
 
 namespace OTF {
@@ -87,8 +88,10 @@ namespace OTF {
     /** Returns the decoded value of the specified query parameter as a null-terminated string, or NULL if the parameter was not set in the request. */
     char *getQueryParameter(const char *key) const;
 
+#if defined(ARDUINO)
     /** Returns the decoded value of the specified query parameter as a null-terminated string, or NULL if the parameter was not set in the request. */
     char *getQueryParameter(const __FlashStringHelper *key) const;
+#endif
 
     /**
      * Returns the value of the specified header as a null-terminated string, or NULL if the header was not set in the request.
@@ -96,11 +99,13 @@ namespace OTF {
      */
     char *getHeader(const char *key) const;
 
+#if defined(ARDUINO)
     /**
      * Returns the value of the specified header as a null-terminated string, or NULL if the header was not set in the request.
      * @param key The lowercase header name.
      */
     char *getHeader(const __FlashStringHelper *key) const;
+#endif
 
     /**
      * Returns the body of the request. THIS STRING IS NOT NULL TERMINATED, AND IT MAY CONTAIN NULL CHARACTERS. If

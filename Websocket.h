@@ -217,43 +217,10 @@ public:
     bool done = false;        // Event handler flips it to true
     mg_mgr_init(&mgr);        // Initialise event manager
     mg_log_set(MG_LL_DEBUG);  // Set log level
-    mg_mgr_free(&mgr);                                   // Deallocate resources
+  }
 
-    WebSocketsClient::onEvent([this](WStype_t type, uint8_t *payload, size_t length) {
-      switch (type) {
-        case WStype_ERROR:
-          WS_DEBUG("Error!\n");
-          _callback(WSEvent_ERROR, payload, length);
-          break;
-        case WStype_DISCONNECTED:
-          WS_DEBUG("Disconnected!\n");
-          _callback(WSEvent_DISCONNECTED, payload, length);
-          break;
-        case WStype_CONNECTED: {
-          WS_DEBUG("Connected to url: %s\n", payload);
-          _callback(WSEvent_CONNECTED, payload, length);
-        } break;
-        case WStype_TEXT:
-          WS_DEBUG("get text: %s\n", payload);
-          _callback(WSEvent_TEXT, payload, length);
-          break;
-        case WStype_BIN:
-          WS_DEBUG("get binary length: %u\n", length);
-          _callback(WSEvent_BIN, payload, length);
-          break;
-        case WStype_PING:
-          WS_DEBUG("get ping\n");
-          _callback(WSEvent_PING, payload, length);
-          break;
-        case WStype_PONG:
-          WS_DEBUG("get pong\n");
-          _callback(WSEvent_PONG, payload, length);
-          break;
-        default:
-          WS_DEBUG("Unknown event type: %d\n", type);
-          break;
-      }
-    });
+  ~WebsocketClient() {
+    mg_mgr_free(&mgr);  // Deallocate resources
   }
 
   /**
@@ -280,7 +247,7 @@ public:
    */
   void close() {
     WS_DEBUG("Closing connection\n");
-    WebSocketsClient::disconnect();
+    printf("Closing connection\n");
   }
 
   /**
