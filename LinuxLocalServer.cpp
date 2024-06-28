@@ -1,7 +1,5 @@
 #if !defined(ARDUINO)
 #include "LinuxLocalServer.h"
-#include <sys/socket.h>
-#include <poll.h>
 
 using namespace OTF;
 
@@ -12,7 +10,7 @@ LocalClient *LinuxLocalServer::acceptClient() {
     delete activeClient;
   }
 
-//   WiFiClient wiFiClient = server.available();
+  WiFiClient wiFiClient = server.available();
   if (wiFiClient) {
     activeClient = new LinuxLocalClient(wiFiClient);
   } else {
