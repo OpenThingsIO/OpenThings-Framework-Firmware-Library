@@ -3,22 +3,22 @@
 #define OTF_LINUXLOCALSERVER_H
 
 #include "LocalServer.h"
+#include "etherport.h"
 
 namespace OTF {
   class LinuxLocalClient : public LocalClient {
-    friend class Esp32LocalServer;
+    friend class LinuxLocalServer;
 
   private:
-    int client;
-    LinuxLocalClient(int client);
-
+    EthernetClient client;
+    LinuxLocalClient(EthernetClient client);
+    
   public:
     bool dataAvailable();
     size_t readBytes(char *buffer, size_t length);
     size_t readBytesUntil(char terminator, char *buffer, size_t length);
     void print(const char *data);
-    size_t write(const char *buffer, size_t length);
-    int peek();
+    //int peek();
     void setTimeout(int timeout);
     void flush();
     void stop();
@@ -27,11 +27,12 @@ namespace OTF {
 
   class LinuxLocalServer : public LocalServer {
   private:
-    int server;
-    LinuxLocalServer *activeClient = nullptr;
+    EthernetServer server;
+    LinuxLocalClient *activeClient = nullptr;
 
   public:
     LinuxLocalServer(uint16_t port);
+    ~LinuxLocalServer();
 
     LocalClient *acceptClient();
     void begin();

@@ -5,26 +5,35 @@ using namespace OTF;
 
 LinuxLocalServer::LinuxLocalServer(uint16_t port) : server(port) {}
 
+LinuxLocalServer::~LinuxLocalServer() {
+  if (activeClient != nullptr)
+    activeClient->stop();
+    delete activeClient;
+}
+
+
 LocalClient *LinuxLocalServer::acceptClient() {
   if (activeClient != nullptr) {
+    activeClient->stop();
     delete activeClient;
   }
 
-  WiFiClient wiFiClient = server.available();
-  if (wiFiClient) {
-    activeClient = new LinuxLocalClient(wiFiClient);
+  EthernetClient client = server.available();
+  if (client) {
+    activeClient = new LinuxLocalClient(client);
   } else {
     activeClient = nullptr;
   }
   return activeClient;
 }
 
+
 void LinuxLocalServer::begin() {
   server.begin();
 }
 
 
-LinuxLocalClient::LinuxLocalClient(WiFiClient client) {
+LinuxLocalClient::LinuxLocalClient(EthernetClient client) {
   this->client = client;
 }
 
@@ -41,11 +50,7 @@ size_t LinuxLocalClient::readBytesUntil(char terminator, char *buffer, size_t le
 }
 
 void LinuxLocalClient::print(const char *data) {
-  client.print(data);
-}
-
-size_t LinuxLocalClient::write(const char *buffer, size_t length) {
-  return client.write((const uint8_t *)buffer, length);
+  client.write((uint8_t*)data, strlen(data));
 }
 
 int LinuxLocalClient::peek() {
@@ -57,11 +62,10 @@ void LinuxLocalClient::setTimeout(int timeout) {
 }
 
 void LinuxLocalClient::flush() {
-  client.flush();
+	client.flush();
 }
 
 void LinuxLocalClient::stop() {
-  client.stop();
+	client.stop();
 }
-
 #endif
