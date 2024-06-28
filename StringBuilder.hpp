@@ -1,7 +1,12 @@
 #ifndef OTF_STRINGBUILDER_H
 #define OTF_STRINGBUILDER_H
 
+#if defined(ARDUINO)
 #include <Arduino.h>
+#else
+#include <stdint.h>
+#include <functional>
+#endif
 
 namespace OTF {
   typedef std::function<void(const char *data, size_t length, bool streaming)> stream_write_t;
@@ -49,19 +54,23 @@ namespace OTF {
 
     void bprintf(char *format, ...);
 
+#if defined(ARDUINO)
     void bprintf(const __FlashStringHelper *const format, va_list args);
-
     void bprintf(const __FlashStringHelper *const format, ...);
+#endif
 
     /**
      * Raw Write to buffer
      */
     size_t write(const char *data, size_t length);
 
+
+    #if defined(ARDUINO)
     /**
      * Raw Write to buffer from PROGMEM
      */
     size_t write_P(const __FlashStringHelper *const data, size_t length);
+    #endif
 
     /**
      * Enables streaming mode for the StringBuilder.

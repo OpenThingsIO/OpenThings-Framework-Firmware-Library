@@ -4,8 +4,8 @@
 #include "Request.h"
 #include "Response.h"
 
+#if defined(ARDUINO)
 #include <Arduino.h>
-#include "Websocket.h"
 
 #if defined(ESP8266)
   #include "Esp8266LocalServer.h"
@@ -14,6 +14,9 @@
   #include "Esp32LocalServer.h"
   #define LOCAL_SERVER_CLASS Esp32LocalServer
 #endif
+#endif
+
+#include "Websocket.h"
 
 // The size of the buffer to store the incoming request line and headers (does not include body). Larger requests will be discarded.
 #define HEADERS_BUFFER_SIZE 1536

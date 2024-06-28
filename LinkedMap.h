@@ -1,8 +1,6 @@
 #ifndef OTF_LINKEDMAP_H
 #define OTF_LINKEDMAP_H
 
-#include <Arduino.h>
-
 #define KEY_MAX_LENGTH 100
 
 namespace OTF {

@@ -10,7 +10,6 @@
 
 #include "LinkedMap.h"
 
-#include <Arduino.h>
 
 namespace OTF {
 

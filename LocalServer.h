@@ -1,7 +1,7 @@
 #ifndef OTF_LOCALSERVER_H
 #define OTF_LOCALSERVER_H
 
-#include <Arduino.h>
+#include <stdint.h>
 
 namespace OTF {
   class LocalClient {
