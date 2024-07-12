@@ -78,8 +78,13 @@ namespace OTF {
      * @param hdBuffer externally provided header buffer (optional)
      * @param hdBufferSize size of the externally provided header buffer (optional)
      */
+    #if defined(ARDUINO)
     OpenThingsFramework(uint16_t webServerPort, const String &webSocketHost, uint16_t webSocketPort,
-                        const String &deviceKey, bool useSsl, char *hdBuffer = NULL, int hdBufferSize = HEADERS_BUFFER_SIZE);
+                    const String &deviceKey, bool useSsl, char *hdBuffer = NULL, int hdBufferSize = HEADERS_BUFFER_SIZE);
+    #else
+    OpenThingsFramework(uint16_t webServerPort, const char *webSocketHost, uint16_t webSocketPort,
+                    const char *deviceKey, bool useSsl, char *hdBuffer = NULL, int hdBufferSize = HEADERS_BUFFER_SIZE);
+    #endif
 
     /**
      * Registers a callback function to run when a request is made to the specified path. The callback function will

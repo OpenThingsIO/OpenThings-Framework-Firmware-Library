@@ -11,7 +11,7 @@ Request::Request(char *str, size_t length, bool cloudRequest) {
   DEBUG(Serial.println(F("Parsing HTTP method"));)
   for (; index < length; index++) {
     if (str[index] == '\0') {
-      // Reject any requests that contain null characters outside of the body to prevent null byte poisoning attacks.
+      // Reject any requests that contain null characters outside of the body to prevent null unsigned char poisoning attacks.
       requestType = INVALID;
       return;
     } else if (str[index] == ' ') {
@@ -66,7 +66,7 @@ Request::Request(char *str, size_t length, bool cloudRequest) {
 
     character = str[index];
     if (character == '\0') {
-      // Reject any requests that contain null characters outside of the body to prevent null byte poisoning attacks.
+      // Reject any requests that contain null characters outside of the body to prevent null unsigned char poisoning attacks.
       requestType = INVALID;
       return;
     } else if (character == '?' || character == '#' || character == ' ') {
@@ -91,7 +91,7 @@ Request::Request(char *str, size_t length, bool cloudRequest) {
     // Skip over the fragment.
     while (index < length && (character = str[++index]) != ' ') {
       if (character == '\0') {
-        // Reject any requests that contain null characters outside of the body to prevent null byte poisoning attacks.
+        // Reject any requests that contain null characters outside of the body to prevent null unsigned char poisoning attacks.
         requestType = INVALID;
         return;
       }
@@ -106,7 +106,7 @@ Request::Request(char *str, size_t length, bool cloudRequest) {
   this->httpVersion = &str[index];
   for (; index < length; index++) {
     if (str[index] == '\0') {
-      // Reject any requests that contain null characters outside of the body to prevent null byte poisoning attacks.
+      // Reject any requests that contain null characters outside of the body to prevent null unsigned char poisoning attacks.
       requestType = INVALID;
       return;
     } else if (str[index] == '\r') {
@@ -159,7 +159,7 @@ char Request::parseQuery(char *str, size_t length, size_t &index) {
       char character = str[index];
 
       if (character == '\0') {
-        // Reject any requests that contain null characters outside of the body to prevent null byte poisoning attacks.
+        // Reject any requests that contain null characters outside of the body to prevent null unsigned char poisoning attacks.
         return '\0';
       }
 
@@ -209,7 +209,7 @@ bool Request::parseHeader(char *str, size_t length, size_t &index, LinkedMap<cha
 
   for (; index < length; index++) {
     if (str[index] == '\0') {
-      // Reject any requests that contain null characters outside of the body to prevent null byte poisoning attacks.
+      // Reject any requests that contain null characters outside of the body to prevent null unsigned char poisoning attacks.
       return false;
     } else if (str[index] == ':' && colon == nullptr) {
       colon = &str[index];
@@ -286,13 +286,17 @@ void Request::decodeQueryParameter(char *value) {
 
 char *Request::getPath() const { return path; }
 
+#if defined(ARDUINO)
 char *Request::getQueryParameter(const __FlashStringHelper *key) const { return queryParams.find(key); }
+#endif
 
 char *Request::getQueryParameter(const char *key) const { return queryParams.find(key); }
 
 char *Request::getHeader(const char *key) const { return headers.find(key); }
 
+#if defined(ARDUINO)
 char *Request::getHeader(const __FlashStringHelper *key) const { return headers.find(key); }
+#endif
 
 char *Request::getBody() const { return body; }
 

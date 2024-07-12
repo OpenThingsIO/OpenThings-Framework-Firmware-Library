@@ -33,6 +33,7 @@
 #include <inttypes.h>
 #include <ctype.h>
 #include <openssl/ssl.h>
+#include <string>
 
 #ifdef __APPLE__
 #define MSG_NOSIGNAL SO_NOSIGPIPE

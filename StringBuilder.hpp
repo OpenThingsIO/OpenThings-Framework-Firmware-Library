@@ -4,8 +4,11 @@
 #if defined(ARDUINO)
 #include <Arduino.h>
 #else
+#include <stdio.h>
+#include <stdarg.h>
 #include <stdint.h>
 #include <functional>
+#include <cstring>
 #define sprintf_P sprintf
 #define strncpy_P strncpy
 #define strcmp_P strcmp
@@ -13,17 +16,14 @@
 #define strlen_P strlen
 
 #define F(x) x
-#define String char *
 
- #define max(a,b) \
-   ({ __typeof__ (a) _a = (a); \
-       __typeof__ (b) _b = (b); \
-     _a > _b ? _a : _b; })
+static inline int max(int a, int b) {
+    return a > b ? a : b;
+}
 
-#define min(a,b) \
-   ({ __typeof__ (a) _a = (a); \
-       __typeof__ (b) _b = (b); \
-     _a < _b ? _a : _b; })
+static inline int min(int a, int b) {
+    return a < b ? a : b;
+}
 #endif
 
 namespace OTF {

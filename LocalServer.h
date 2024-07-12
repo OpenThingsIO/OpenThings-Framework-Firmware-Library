@@ -11,14 +11,14 @@ namespace OTF {
     virtual bool dataAvailable() = 0;
 
     /**
-     * Reads up to `length` bytes from the request stream into `buffer`.
-     * @return The number of bytes read.
+     * Reads up to `length` unsigned chars from the request stream into `buffer`.
+     * @return The number of unsigned chars read.
      */
     virtual size_t readBytes(char *buffer, size_t length) = 0;
 
     /**
-     * Reads up to `length` bytes from the request stream until `terminator` or the end of stream is reached.
-     * @return The number of bytes read.
+     * Reads up to `length` unsigned chars from the request stream until `terminator` or the end of stream is reached.
+     * @return The number of unsigned chars read.
      */
     virtual size_t readBytesUntil(char terminator, char *buffer, size_t length) = 0;
 
@@ -30,13 +30,13 @@ namespace OTF {
     virtual void print(const __FlashStringHelper *data) = 0;
 #endif
 
-    /** Writes `size` bytes from `buffer` to the response stream. */
+    /** Writes `size` unsigned chars from `buffer` to the response stream. */
     virtual size_t write(const char *buffer, size_t size) = 0;
 
-    /** Returns the next character in the request stream (without advancing the stream), or returns -1 if no character is available. */
-    virtual int peek() = 0;
+    // /** Returns the next character in the request stream (without advancing the stream), or returns -1 if no character is available. */
+    // virtual int peek() = 0;
 
-    /** Sets the maximum number of milliseconds to wait for data to be available when readBytes() is called. */
+    /** Sets the maximum number of milliseconds to wait for data to be available when readByte() is called. */
     virtual void setTimeout(int timeout) = 0;
     
     virtual void flush() = 0;

@@ -26,6 +26,15 @@
 
 #else
 
+#if defined(DEBUG)
+#defined DEBUG_ETHERPORT printf
+inline  void DEBUG_PRINT(int x) {printf("%d", x);}
+inline  void DEBUG_PRINT(const char*s) {printf("%s", s);}
+#define DEBUG_ETHERPORT(x)        {DEBUG_PRINT(x);printf("\n");}
+#else
+#define DEBUG_ETHERPORT(x)
+#endif
+
 #include "etherport.h"
 #include <stdarg.h>
 #include <stdio.h>
@@ -64,34 +73,34 @@ bool EthernetServer::begin()
 
 	if ((m_sock = socket(PF_INET6, SOCK_STREAM, 0)) < 0)
 	{
-		DEBUG_PRINTLN("can't create shell listen socket");
+		DEBUG_ETHERPORT("can't create shell listen socket");
 		return false;
 	}
 	int on = 1;
 	if (setsockopt(m_sock, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on)) < 0)
 	{
-		DEBUG_PRINTLN("can't setsockopt SO_REUSEADDR");
+		DEBUG_ETHERPORT("can't setsockopt SO_REUSEADDR");
 		return false;
 	}
 	int off = 0;
 	if (setsockopt(m_sock, IPPROTO_IPV6, IPV6_V6ONLY, &off, sizeof(off)) < 0)
 	{
-		DEBUG_PRINTLN("can't setsockopt IPV6_V6ONLY");
+		DEBUG_ETHERPORT("can't setsockopt IPV6_V6ONLY");
 		return false;
 	}
 	if (bind(m_sock, (struct sockaddr *) &sin, sizeof(sin)) < 0)
 	{
-		DEBUG_PRINTLN("shell bind error");
+		DEBUG_ETHERPORT("shell bind error");
 		return false;
 	}
 	if (ioctl(m_sock, FIONBIO, (char*) &on) < 0)
 	{
-		DEBUG_PRINTLN("setting nonblock failed");
+		DEBUG_ETHERPORT("setting nonblock failed");
 		return false;
 	}
 	if (listen(m_sock, 2) < 0)
 	{
-		DEBUG_PRINTLN("shell listen error");
+		DEBUG_ETHERPORT("shell listen error");
 		return false;
 	}
 	return true;
@@ -152,7 +161,7 @@ int EthernetClient::connect(uint8_t ip[4], uint16_t port)
 
 	if (::connect(m_sock, (struct sockaddr *) &sin, sizeof(sin)) < 0)
 	{
-		DEBUG_PRINTLN("error connecting to server");
+		DEBUG_ETHERPORT("error connecting to server");
 		return 0;
 	}
 	m_connected = true;
@@ -254,7 +263,7 @@ size_t EthernetClient::readBytesUntil(char terminator, char *buffer, size_t leng
 
 std::string EthernetClient::readStringUntil(char terminator) {
 
-  String ret;
+  std::string ret;
   int c = timedRead();
   while (c >= 0 && c != terminator)
   {
@@ -337,13 +346,13 @@ int EthernetClientSsl::connect(uint8_t ip[4], uint16_t port)
 		//BIO* certbio = BIO_new(BIO_s_file());
 		if (SSL_library_init() < 0) 
 		{
-	        DEBUG_PRINTLN("Could not initialize the OpenSSL library.\n");
+	        DEBUG_ETHERPORT("Could not initialize the OpenSSL library.\n");
 			return 0;
 		}
 		const SSL_METHOD* method = SSLv23_client_method();
 	    ctx = SSL_CTX_new(method);
 	    if (!ctx) {
-        	DEBUG_PRINTLN("Unable to create SSL context.\n");
+        	DEBUG_ETHERPORT("Unable to create SSL context.\n");
 			return 0;
 		}
 		SSL_CTX_set_options(ctx, SSL_OP_NO_SSLv2|SSL_OP_NO_SSLv3);
@@ -363,14 +372,14 @@ int EthernetClientSsl::connect(uint8_t ip[4], uint16_t port)
 	m_sock = socket(AF_INET, SOCK_STREAM, 0);
 	if (::connect(m_sock, (struct sockaddr *) &sin, sizeof(sin)) < 0)
 	{
-		DEBUG_PRINTLN("error connecting to server");
+		DEBUG_ETHERPORT("error connecting to server");
 		return 0;
 	}
 	SSL_set_fd(ssl, m_sock);
 	if (SSL_connect(ssl) < 1) {
 		close(m_sock);
 		m_sock = 0;
-       	DEBUG_PRINTLN("Error: Could not build an SSL session");
+       	DEBUG_ETHERPORT("Error: Could not build an SSL session");
 		return 0;
 	}
 	m_connected = true;

@@ -32,12 +32,12 @@ bool Esp8266LocalClient::dataAvailable() {
   return client.available();
 }
 
-size_t Esp8266LocalClient::readBytes(char *buffer, size_t length) {
-  return client.readBytes(buffer, length);
+size_t Esp8266LocalClient::readByte(char *buffer, size_t length) {
+  return client.read_byte(buffer, length);
 }
 
-size_t Esp8266LocalClient::readBytesUntil(char terminator, char *buffer, size_t length) {
-  return client.readBytesUntil(terminator, buffer, length);
+size_t Esp8266LocalClient::readByteUntil(char terminator, char *buffer, size_t length) {
+  return client.read_byteUntil(terminator, buffer, length);
 }
 
 size_t Esp8266LocalClient::write(const char *buffer, size_t size) {

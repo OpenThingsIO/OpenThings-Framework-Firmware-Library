@@ -6,7 +6,7 @@
 #include <WebSocketsClient.h>
 typedef String WSInterfaceString;
 #else
-#include "tiny_websockets/client.hpp"
+#include <tiny_websockets/client.hpp>
 #include <sys/time.h>
 #include <functional>
 typedef const char* WSInterfaceString;
@@ -197,6 +197,7 @@ private:
 };
 
 #else
+unsigned long millis();
 
 class WebsocketClient : protected websockets::WebsocketsClient {
 public:

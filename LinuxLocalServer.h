@@ -1,4 +1,4 @@
-#if !defined(ARDUINO)
+#if defined(OSPI)
 #ifndef OTF_LINUXLOCALSERVER_H
 #define OTF_LINUXLOCALSERVER_H
 
@@ -19,6 +19,7 @@ namespace OTF {
     size_t readBytesUntil(char terminator, char *buffer, size_t length);
     void print(const char *data);
     //int peek();
+    size_t write(const char *buffer, size_t size);
     void setTimeout(int timeout);
     void flush();
     void stop();

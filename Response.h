@@ -8,6 +8,7 @@
 #else
 #include <stdint.h>
 #include <functional>
+#include <stdarg.h>
 #endif
 
 // The maximum possible size of response messages.
@@ -27,11 +28,11 @@ namespace OTF {
     };
     ResponseStatus responseStatus = CREATED;
 
-    Response() : StringBuilder(RESPONSE_BUFFER_SIZE) {}
-
 
   public:
     static const size_t MAX_RESPONSE_LENGTH = RESPONSE_BUFFER_SIZE;
+
+    Response() : StringBuilder(RESPONSE_BUFFER_SIZE) {}
 
     /** Writes the status code/message to the response. This must be called before writing the headers or body. */
     #if defined(ARDUINO)

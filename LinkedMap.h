@@ -2,6 +2,9 @@
 #define OTF_LINKEDMAP_H
 
 #define KEY_MAX_LENGTH 100
+#if !defined(ARDUINO)
+#include <string.h>
+#endif
 
 namespace OTF {
   template<class T>
@@ -20,7 +23,11 @@ namespace OTF {
     LinkedMapNode<T> *_findNode(const char *key, bool keyInFlash = false) const {
       LinkedMapNode<T> *node = head;
       while (node != nullptr) {
+        #if defined(ARDUINO)
         if ((keyInFlash ? strcmp_P(node->key, key) : strcmp(node->key, key)) == 0) {
+        #else
+        if (strcmp(node->key, key) == 0) {
+        #endif
           return node;
         }
 
@@ -68,13 +75,13 @@ namespace OTF {
       _add(new LinkedMapNode<T>(key, value));
     }
 
-    void add(const __FlashStringHelper *key, T value) {
-      _add(new LinkedMapNode<T>(key, value), true);
-    }
+    // void add(const __FlashStringHelper *key, T value) {
+    //   _add(new LinkedMapNode<T>(key, value), true);
+    // }
 
-    T find(const __FlashStringHelper *key) const {
-      return _find((char *) key, true);
-    }
+    // T find(const __FlashStringHelper *key) const {
+    //   return _find((char *) key, true);
+    // }
 
     T find(const char *key) const {
       return _find(key, false);
@@ -92,14 +99,14 @@ namespace OTF {
     T value;
     LinkedMapNode<T> *next = nullptr;
 
-    LinkedMapNode(const __FlashStringHelper *key, T value) {
-      keyFromFlash = true;
-      char *_key = new char[KEY_MAX_LENGTH];
-      strncpy_P(_key, (char *) key, KEY_MAX_LENGTH);
-      this->key = (const char *) _key;
+    // LinkedMapNode(const __FlashStringHelper *key, T value) {
+    //   keyFromFlash = true;
+    //   char *_key = new char[KEY_MAX_LENGTH];
+    //   strncpy_P(_key, (char *) key, KEY_MAX_LENGTH);
+    //   this->key = (const char *) _key;
 
-      this->value = value;
-    }
+    //   this->value = value;
+    // }
 
     LinkedMapNode(const char *key, T value) {
       this->key = key;

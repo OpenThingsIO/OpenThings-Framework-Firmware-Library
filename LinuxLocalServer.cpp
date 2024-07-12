@@ -1,4 +1,4 @@
-#if !defined(ARDUINO)
+#if defined(OSPI)
 #include "LinuxLocalServer.h"
 
 using namespace OTF;
@@ -53,9 +53,13 @@ void LinuxLocalClient::print(const char *data) {
   client.write((uint8_t*)data, strlen(data));
 }
 
-int LinuxLocalClient::peek() {
-  return client.peek();
+size_t LinuxLocalClient::write(const char *buffer, size_t size) {
+  return client.write((uint8_t*)buffer, size);
 }
+
+/*int LinuxLocalClient::peek() {
+  return client.peek();
+}*/
 
 void LinuxLocalClient::setTimeout(int timeout) {
   client.setTimeout(timeout);
