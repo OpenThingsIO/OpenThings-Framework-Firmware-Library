@@ -32,12 +32,12 @@ bool Esp32LocalClient::dataAvailable() {
   return client.available();
 }
 
-size_t Esp32LocalClient::readByte(char *buffer, size_t length) {
-  return client.read_byte(buffer, length);
+size_t Esp32LocalClient::readBytes(char *buffer, size_t length) {
+  return client.readBytes(buffer, length);
 }
 
-size_t Esp32LocalClient::readByteUntil(char terminator, char *buffer, size_t length) {
-  return client.read_byteUntil(terminator, buffer, length);
+size_t Esp32LocalClient::readBytesUntil(char terminator, char *buffer, size_t length) {
+  return client.readBytesUntil(terminator, buffer, length);
 }
 
 void Esp32LocalClient::print(const char *data) {

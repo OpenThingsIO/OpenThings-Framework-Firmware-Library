@@ -4,6 +4,11 @@
 #include <stdint.h>
 #include <stddef.h>
 
+#if defined(ARDUINO)
+    #include <Arduino.h>
+#endif
+
+
 namespace OTF {
   class LocalClient {
   public:
@@ -36,7 +41,7 @@ namespace OTF {
     // /** Returns the next character in the request stream (without advancing the stream), or returns -1 if no character is available. */
     // virtual int peek() = 0;
 
-    /** Sets the maximum number of milliseconds to wait for data to be available when readByte() is called. */
+    /** Sets the maximum number of milliseconds to wait for data to be available when readBytes() is called. */
     virtual void setTimeout(int timeout) = 0;
     
     virtual void flush() = 0;

@@ -8,6 +8,10 @@
 #define DEBUG(x) 
 #endif
 
+#if defined(ARDUINO)
+    #include <Arduino.h>
+#endif
+
 #include "LinkedMap.h"
 #include <stddef.h>
 #include <stdlib.h>

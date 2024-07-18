@@ -75,17 +75,21 @@ namespace OTF {
       _add(new LinkedMapNode<T>(key, value));
     }
 
-    // void add(const __FlashStringHelper *key, T value) {
-    //   _add(new LinkedMapNode<T>(key, value), true);
-    // }
-
-    // T find(const __FlashStringHelper *key) const {
-    //   return _find((char *) key, true);
-    // }
-
+    #if defined(ARDUINO)
+    void add(const __FlashStringHelper *key, T value) {
+      _add(new LinkedMapNode<T>(key, value), true);
+    }
+    #endif
+    
     T find(const char *key) const {
       return _find(key, false);
     }
+
+    #if defined(ARDUINO)
+    T find(const __FlashStringHelper *key) const {
+      return _find((char *) key, true);
+    }
+    #endif    
   };
 
   template<class T>
