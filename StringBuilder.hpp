@@ -68,9 +68,9 @@ namespace OTF {
      * @param format The format string to pass to sprintf.
      * @param ... The format arguments to pass to sprintf.
      */
-    void bprintf(char *format, va_list args);
+    void bprintf(const char *format, va_list args);
 
-    void bprintf(char *format, ...);
+    void bprintf(const char *format, ...);
 
 #if defined(ARDUINO)
     void bprintf(const __FlashStringHelper *const format, va_list args);

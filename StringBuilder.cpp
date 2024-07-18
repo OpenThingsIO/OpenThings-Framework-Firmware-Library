@@ -11,7 +11,7 @@ StringBuilder::~StringBuilder() {
   delete buffer;
 }
 
-void StringBuilder::bprintf(char *format, va_list args) {
+void StringBuilder::bprintf(const char *format, va_list args) {
   // Don't do anything if the buffer already contains invalid data.
   if (!valid) {
     return;
@@ -40,7 +40,7 @@ void StringBuilder::bprintf(char *format, va_list args) {
   }
 }
 
-void StringBuilder::bprintf(char *const format, ...) {
+void StringBuilder::bprintf(const char *const format, ...) {
   va_list args;
   va_start(args, format);
   bprintf(format, args);
@@ -49,7 +49,7 @@ void StringBuilder::bprintf(char *const format, ...) {
 
 #if defined(ARDUINO)
 void StringBuilder::bprintf(const __FlashStringHelper *const format, va_list args) {
-  bprintf((char *) format, args);
+  bprintf((const char *) format, args);
 }
 
 void StringBuilder::bprintf(const __FlashStringHelper *const format, ...) {
