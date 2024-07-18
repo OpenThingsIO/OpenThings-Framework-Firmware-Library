@@ -2,7 +2,9 @@
 #define OTF_LINKEDMAP_H
 
 #define KEY_MAX_LENGTH 100
-#if !defined(ARDUINO)
+#if defined(ARDUINO)
+#include <Arduino.h>
+#else
 #include <string.h>
 #endif
 
