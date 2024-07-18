@@ -106,13 +106,13 @@ void Response::writeHeader(const char *name, const char *value) {
 }
 #endif
 
-void Response::writeBodyChunk(char *const format, ...) {
+void Response::writeBodyChunk(const char *const format, ...) {
   if (responseStatus < STATUS_WRITTEN) {
     valid = false;
     return;
   }
   if (responseStatus != BODY_WRITTEN) {
-    bprintf((char *) "\r\n");
+    bprintf("\r\n");
     responseStatus = BODY_WRITTEN;
   }
 
