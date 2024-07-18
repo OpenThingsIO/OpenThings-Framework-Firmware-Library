@@ -4,8 +4,8 @@
 #include "Request.h"
 #include "Response.h"
 
+#if defined(ARDUINO)
 #include <Arduino.h>
-#include "Websocket.h"
 
 #if defined(ESP8266)
   #include "Esp8266LocalServer.h"
@@ -14,6 +14,13 @@
   #include "Esp32LocalServer.h"
   #define LOCAL_SERVER_CLASS Esp32LocalServer
 #endif
+#else
+#include <stdint.h>
+#include "LinuxLocalServer.h"
+#define LOCAL_SERVER_CLASS LinuxLocalServer
+#endif
+
+#include "Websocket.h"
 
 // The size of the buffer to store the incoming request line and headers (does not include body). Larger requests will be discarded.
 #define HEADERS_BUFFER_SIZE 1536
@@ -71,8 +78,13 @@ namespace OTF {
      * @param hdBuffer externally provided header buffer (optional)
      * @param hdBufferSize size of the externally provided header buffer (optional)
      */
+    #if defined(ARDUINO)
     OpenThingsFramework(uint16_t webServerPort, const String &webSocketHost, uint16_t webSocketPort,
-                        const String &deviceKey, bool useSsl, char *hdBuffer = NULL, int hdBufferSize = HEADERS_BUFFER_SIZE);
+                    const String &deviceKey, bool useSsl, char *hdBuffer = NULL, int hdBufferSize = HEADERS_BUFFER_SIZE);
+    #else
+    OpenThingsFramework(uint16_t webServerPort, const char *webSocketHost, uint16_t webSocketPort,
+                    const char *deviceKey, bool useSsl, char *hdBuffer = NULL, int hdBufferSize = HEADERS_BUFFER_SIZE);
+    #endif
 
     /**
      * Registers a callback function to run when a request is made to the specified path. The callback function will
@@ -82,6 +94,7 @@ namespace OTF {
      */
     void on(const char *path, callback_t callback, HTTPMethod method = HTTP_ANY);
 
+#if defined(ARDUINO)
     /**
      * Registers a callback function to run when a request is made to the specified path. The callback function will
      * be passed an OpenThingsRequest, and must return an OpenThingsResponse.
@@ -89,6 +102,7 @@ namespace OTF {
      * @param callback
      */
     void on(const __FlashStringHelper *path, callback_t callback, HTTPMethod method = HTTP_ANY);
+#endif
 
     /** Registers a callback function to run when a request is received but its path does not match a registered callback. */
     void onMissingPage(callback_t callback);

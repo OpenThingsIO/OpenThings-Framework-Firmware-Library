@@ -1,7 +1,30 @@
 #ifndef OTF_STRINGBUILDER_H
 #define OTF_STRINGBUILDER_H
 
+#if defined(ARDUINO)
 #include <Arduino.h>
+#else
+#include <stdio.h>
+#include <stdarg.h>
+#include <stdint.h>
+#include <functional>
+#include <cstring>
+#define sprintf_P sprintf
+#define strncpy_P strncpy
+#define strcmp_P strcmp
+#define strncmp_P strncmp
+#define strlen_P strlen
+
+#define F(x) x
+
+static inline int max(int a, int b) {
+    return a > b ? a : b;
+}
+
+static inline int min(int a, int b) {
+    return a < b ? a : b;
+}
+#endif
 
 namespace OTF {
   typedef std::function<void(const char *data, size_t length, bool streaming)> stream_write_t;
@@ -49,19 +72,23 @@ namespace OTF {
 
     void bprintf(char *format, ...);
 
+#if defined(ARDUINO)
     void bprintf(const __FlashStringHelper *const format, va_list args);
-
     void bprintf(const __FlashStringHelper *const format, ...);
+#endif
 
     /**
      * Raw Write to buffer
      */
     size_t write(const char *data, size_t length);
 
+
+    #if defined(ARDUINO)
     /**
      * Raw Write to buffer from PROGMEM
      */
     size_t write_P(const __FlashStringHelper *const data, size_t length);
+    #endif
 
     /**
      * Enables streaming mode for the StringBuilder.

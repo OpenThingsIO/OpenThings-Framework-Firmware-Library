@@ -8,9 +8,15 @@
 #define DEBUG(x) 
 #endif
 
-#include "LinkedMap.h"
+#if defined(ARDUINO)
+    #include <Arduino.h>
+#endif
 
-#include <Arduino.h>
+#include "LinkedMap.h"
+#include <stddef.h>
+#include <stdlib.h>
+#include <ctype.h>
+
 
 namespace OTF {
 
@@ -44,13 +50,6 @@ namespace OTF {
     bool cloudRequest;
 
     /**
-     * Parses an HTTP request. The parser makes some assumptions about the message format that may not hold if the
-     * message is improperly formatted, so the behavior of this constructor is undefined if it is passed an improperly
-     * formatted request.
-     */
-    Request(char *str, size_t length, bool cloudRequest);
-
-    /**
      * Parses the query of the request.
      * @param str The full request string.
      * @param length The length of the full request.
@@ -82,14 +81,23 @@ namespace OTF {
     static void decodeQueryParameter(char *value);
 
   public:
+    /**
+     * Parses an HTTP request. The parser makes some assumptions about the message format that may not hold if the
+     * message is improperly formatted, so the behavior of this constructor is undefined if it is passed an improperly
+     * formatted request.
+     */
+    Request(char *str, size_t length, bool cloudRequest);
+
     /** Returns the path of the request (not including the query) as a null-terminated string. */
     char *getPath() const;
 
     /** Returns the decoded value of the specified query parameter as a null-terminated string, or NULL if the parameter was not set in the request. */
     char *getQueryParameter(const char *key) const;
 
+#if defined(ARDUINO)
     /** Returns the decoded value of the specified query parameter as a null-terminated string, or NULL if the parameter was not set in the request. */
     char *getQueryParameter(const __FlashStringHelper *key) const;
+#endif
 
     /**
      * Returns the value of the specified header as a null-terminated string, or NULL if the header was not set in the request.
@@ -97,11 +105,13 @@ namespace OTF {
      */
     char *getHeader(const char *key) const;
 
+#if defined(ARDUINO)
     /**
      * Returns the value of the specified header as a null-terminated string, or NULL if the header was not set in the request.
      * @param key The lowercase header name.
      */
     char *getHeader(const __FlashStringHelper *key) const;
+#endif
 
     /**
      * Returns the body of the request. THIS STRING IS NOT NULL TERMINATED, AND IT MAY CONTAIN NULL CHARACTERS. If

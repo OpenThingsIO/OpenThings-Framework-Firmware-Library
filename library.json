@@ -1,6 +1,6 @@
 {
     "name": "OpenThings-Framework-Firmware-Library",
-    "version": "0.1.2",
+    "version": "0.2.0",
     "author": "rayshobby",
     "description": "OpenThings Framework Library",
     "dependencies": {

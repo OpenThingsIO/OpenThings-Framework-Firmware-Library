@@ -47,6 +47,7 @@ void StringBuilder::bprintf(char *const format, ...) {
   va_end(args);
 }
 
+#if defined(ARDUINO)
 void StringBuilder::bprintf(const __FlashStringHelper *const format, va_list args) {
   bprintf((char *) format, args);
 }
@@ -57,6 +58,7 @@ void StringBuilder::bprintf(const __FlashStringHelper *const format, ...) {
   bprintf(format, args);
   va_end(args);
 }
+#endif
 
 size_t StringBuilder::_write(const char *data, size_t data_length, bool use_pgm) {
   if (!valid) {
@@ -88,11 +90,15 @@ size_t StringBuilder::_write(const char *data, size_t data_length, bool use_pgm)
       }
     } else {
       // Copy the data to the buffer.
+      #if defined(ARDUINO)
       if (use_pgm) {
         memcpy_P(&buffer[length], &data[write_index], write_length);
       } else {
         memcpy(&buffer[length], &data[write_index], write_length);
       }
+    #else 
+    memcpy(&buffer[length], &data[write_index], write_length);
+    #endif
       length += write_length;
       totalLength += write_length;
       write_index += write_length;
@@ -108,9 +114,11 @@ size_t StringBuilder::write(const char *data, size_t data_length) {
   return _write(data, data_length, false);
 }
 
+#if defined(ARDUINO)
 size_t StringBuilder::write_P(const __FlashStringHelper *const data, size_t data_length) {
   return _write((const char *) data, data_length, true);
 }
+#endif
 
 void StringBuilder::enableStream(stream_write_t write, stream_flush_t flush, stream_end_t end) {
   streaming = true;

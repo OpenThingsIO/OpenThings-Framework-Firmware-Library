@@ -3,7 +3,13 @@
 
 #include "StringBuilder.hpp"
 
+#if defined(ARDUINO)
 #include <Arduino.h>
+#else
+#include <stdint.h>
+#include <functional>
+#include <stdarg.h>
+#endif
 
 // The maximum possible size of response messages.
 #define RESPONSE_BUFFER_SIZE 4096
@@ -22,17 +28,20 @@ namespace OTF {
     };
     ResponseStatus responseStatus = CREATED;
 
-    Response() : StringBuilder(RESPONSE_BUFFER_SIZE) {}
-
 
   public:
     static const size_t MAX_RESPONSE_LENGTH = RESPONSE_BUFFER_SIZE;
 
-    /** Writes the status code/message to the response. This must be called before writing the headers or body. */
-    void writeStatus(uint16_t statusCode, const String &statusMessage);
+    Response() : StringBuilder(RESPONSE_BUFFER_SIZE) {}
 
     /** Writes the status code/message to the response. This must be called before writing the headers or body. */
+    #if defined(ARDUINO)
+    void writeStatus(uint16_t statusCode, const String &statusMessage);
     void writeStatus(uint16_t statusCode, const __FlashStringHelper *const statusMessage);
+    #else
+    void writeStatus(uint16_t statusCode, const char *statusMessage);
+    #endif
+
 
     /** Writes the status code to the response. This must be called before writing the headers or body. */
     void writeStatus(uint16_t statusCode);
@@ -41,13 +50,13 @@ namespace OTF {
      * multiple times to create a list. This function must not be called before the status has been written or after
      * the body has been written.
      */
-    //void writeHeader(char *const name, char *const value);
-
-    //void writeHeader(const __FlashStringHelper *const name, char *const value);
-
+    #if defined(ARDUINO)
     void writeHeader(const __FlashStringHelper *const name, const __FlashStringHelper *const value);
-    
     void writeHeader(const __FlashStringHelper *const name, int value);
+    #else
+    void writeHeader(const char *name, const char *const value);
+    void writeHeader(const char *name, int value);
+    #endif
 
     /**
      * Calls sprintf to write a chunk of data to the response body. This method may only be called after any desired
@@ -56,11 +65,12 @@ namespace OTF {
      * @param ... The format arguments to pass to sprintf.
      */
     void writeBodyChunk(char *format, ...);
-
-    void writeBodyChunk(const __FlashStringHelper *const format, ...);
-
     void writeBodyData(const char *data, size_t max_length);
+
+#if defined(ARDUINO)
+    void writeBodyChunk(const __FlashStringHelper *const format, ...);
     void writeBodyData(const __FlashStringHelper *const data, size_t max_length);
+#endif
   };
 }// namespace OTF
 #endif

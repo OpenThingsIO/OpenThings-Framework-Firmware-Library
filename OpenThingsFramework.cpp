@@ -1,5 +1,6 @@
 #include "OpenThingsFramework.h"
 #include "StringBuilder.hpp"
+#include <string>
 
 // The timeout for reading and parsing incoming requests.
 #define WIFI_CONNECTION_TIMEOUT 1500
@@ -23,8 +24,13 @@ OpenThingsFramework::OpenThingsFramework(uint16_t webServerPort, char *hdBuffer,
   localServer.begin();
 };
 
+#if defined(ARDUINO)
 OpenThingsFramework::OpenThingsFramework(uint16_t webServerPort, const String &webSocketHost, uint16_t webSocketPort,
                                          const String &deviceKey, bool useSsl, char *hdBuffer, int hdBufferSize) : OpenThingsFramework(webServerPort, hdBuffer, hdBufferSize) {
+#else
+OpenThingsFramework::OpenThingsFramework(uint16_t webServerPort, const char* webSocketHost, uint16_t webSocketPort,
+                                         const char* deviceKey, bool useSsl, char *hdBuffer, int hdBufferSize) : OpenThingsFramework(webServerPort, hdBuffer, hdBufferSize) {
+#endif
   setCloudStatus(UNABLE_TO_CONNECT);
   DEBUG(Serial.println(F("Initializing websocket..."));)
   webSocket = new WebsocketClient();
@@ -40,7 +46,12 @@ OpenThingsFramework::OpenThingsFramework(uint16_t webServerPort, const String &w
     // webSocket->connectSecure(webSocketHost, webSocketPort, "/socket/v1?deviceKey=" + deviceKey);
   } else {
     DEBUG(Serial.println(F("Connecting to websocket without SSL"));)
+    #if defined(ARDUINO)
     webSocket->connect(webSocketHost, webSocketPort, "/socket/v1?deviceKey=" + deviceKey);
+    #else
+    std::string path = std::string("/socket/v1?deviceKey=") + deviceKey;
+    webSocket->connect(webSocketHost, webSocketPort, path.c_str());
+    #endif
   }
   DEBUG(Serial.println(F("Initialized websocket"));)
 
@@ -59,9 +70,11 @@ void OpenThingsFramework::on(const char *path, callback_t callback, HTTPMethod m
   callbacks.add(makeMapKey(new StringBuilder(KEY_MAX_LENGTH), method, path), callback);
 }
 
+#if defined(ARDUINO)
 void OpenThingsFramework::on(const __FlashStringHelper *path, callback_t callback, HTTPMethod method) {
   callbacks.add(makeMapKey(new StringBuilder(KEY_MAX_LENGTH), method, (char *) path), callback);
 }
+#endif
 
 void OpenThingsFramework::onMissingPage(callback_t callback) {
   missingPageCallback = callback;
@@ -114,7 +127,7 @@ void OpenThingsFramework::localServerLoop() {
     buffer[length++] = '\n';
     if(read==1 && rc=='\r') { break; }
   }
-  DEBUG(Serial.printf((char *) F("Finished reading data from client. Request line + headers were %d bytes\n"), length);)
+  DEBUG(Serial.printf((char *) F("Finished reading data from client. Request line + headers were %d unsigned chars\n"), length);)
   buffer[length] = 0;
 
   // Make sure that the headers were fully read into the buffer.
@@ -133,7 +146,11 @@ void OpenThingsFramework::localServerLoop() {
     char *contentLengthString = request.getHeader(F("content-length"));
     // If the header was not specified, the message has no body.
     if (contentLengthString != nullptr) {
+        #if defined(ARDUINO)
       long contentLength = String(contentLengthString).toInt();
+      #else
+      long contentLength = atol(contentLengthString);
+      #endif
       // If the header specifies a length of 0 or could not be parsed, the message has no body.
       if (contentLength > 0) {
         // Read the body from the client.
@@ -167,7 +184,7 @@ void OpenThingsFramework::localServerLoop() {
 
   if(bodyBuffer) delete[] bodyBuffer;
   if (res.isValid()) {
-    DEBUG(Serial.printf("Sent response, %d bytes\n", res.getTotalLength());)
+    DEBUG(Serial.printf("Sent response, %d unsigned chars\n", res.getTotalLength());)
   } else {
     localClient->print(F("HTTP/1.1 500 OTF error\r\nResponse string could not be built\r\n"));
     DEBUG(Serial.println(F("An error occurred while building the response string."));)
@@ -261,7 +278,7 @@ void OpenThingsFramework::webSocketEventCallback(WSEvent_t type, uint8_t *payloa
         res.end();
 
         if (res.isValid()) {
-          DEBUG(Serial.printf("Sent response, %d bytes\n", res.getTotalLength());)
+          DEBUG(Serial.printf("Sent response, %d unsigned chars\n", res.getTotalLength());)
         } else {
           DEBUG(Serial.println(F("An error occurred building response string"));)
           StringBuilder builder(100);

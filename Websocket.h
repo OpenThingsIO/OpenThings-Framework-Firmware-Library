@@ -1,7 +1,16 @@
 #ifndef WEBSOCKET_H
 #define WEBSOCKET_H
 
+#if defined(ARDUINO)
+#include <Arduino.h>
 #include <WebSocketsClient.h>
+typedef String WSInterfaceString;
+#else
+#include <tiny_websockets/client.hpp>
+#include <sys/time.h>
+#include <functional>
+typedef const char* WSInterfaceString;
+#endif
 
 // #define ENABLE_DEBUG
 #ifdef ENABLE_DEBUG
@@ -11,8 +20,6 @@
 #else
 #define WS_DEBUG(...)
 #endif
-
-typedef String WSInterfaceString;
 
 typedef enum {
     WSEvent_ERROR,
@@ -30,6 +37,7 @@ typedef enum {
 
 typedef std::function<void(WSEvent_t type, uint8_t * payload, size_t length)> WebSocketEventCallback;
 
+#if defined(ARDUINO)
 class WebsocketClient : protected WebSocketsClient {
 public:
   WebsocketClient() : WebSocketsClient() {
@@ -168,21 +176,6 @@ public:
   bool end();
 
 private:
-  // unsigned int webSocketHeartbeatInterval = 0;
-  // unsigned int webSocketHeartbeatTimeout = 0;
-  // unsigned long webSocketHeartbeatLastSent = 0;
-  // unsigned int webSocketHeartbeatMissed = 0;
-  // unsigned int webSocketHeartbeatMaxMissed = 0;
-  // bool webSocketHeartbeatInProgress = false;
-  // bool webSocketHeartbeatEnabled = false;
-
-  // unsigned int webSocketReconnectInterval = 0;
-  // unsigned int webSocketFirstReconnectInterval = 0;
-  // unsigned long webSocketReconnectLastAttempt = 0;
-  // bool webSocketReconnectFirstAttempt = true;
-  // bool webSocketReconnectEnabled = false;
-  // bool webSocketShouldReconnect = false;
-
   bool enableReconnect = false;
   unsigned long reconnectInterval = 0;
 
@@ -202,5 +195,189 @@ private:
 
   bool isStreaming = false;
 };
+
+#else
+unsigned long millis();
+
+class WebsocketClient : protected websockets::WebsocketsClient {
+public:
+  WebsocketClient() : websockets::WebsocketsClient() {
+    websockets::WebsocketsClient::onEvent([this](websockets::WebsocketsEvent event, websockets::WSInterfaceString message) {
+      switch (event) {
+        case websockets::WebsocketsEvent::GotPing:
+        // Respond to the ping
+          WS_DEBUG("Ponged a ping\n");
+          pong(message);
+          _callback(WSEvent_PING, (uint8_t *) message.c_str(), message.length());
+          break;
+        case websockets::WebsocketsEvent::GotPong:
+          WS_DEBUG("Received a pong\n");
+          if (heartbeatEnabled) {
+            // If heartbeat is enabled, reset the missed coun and set the heartbeat in progress flag to false
+            heartbeatMissed = 0;
+            heartbeatInProgress = false;
+          }
+          _callback(WSEvent_PONG, (uint8_t *) message.c_str(), message.length());
+          break;
+        case websockets::WebsocketsEvent::ConnectionOpened:
+          WS_DEBUG("Connection opened\n");
+          _callback(WSEvent_CONNECTED, (uint8_t *) message.c_str(), message.length());
+          break;
+          case websockets::WebsocketsEvent::ConnectionClosed:
+          WS_DEBUG("Connection closed\n");
+          // If the connection was closed, set the heartbeat in progress flag to false
+          if (heartbeatEnabled) {
+            heartbeatMissed = 0;
+            heartbeatInProgress = false;
+          }
+          _callback(WSEvent_DISCONNECTED, (uint8_t *) message.c_str(), message.length());
+          break;
+      }
+    });
+
+    websockets::WebsocketsClient::onMessage([this](websockets::WebsocketsMessage message) -> void {
+        WS_DEBUG("Received websocket message\n")
+        switch (message.type()) {
+            case websockets::MessageType::Text:
+                WS_DEBUG("get text: %s\n", payload);
+                _callback(WSEvent_TEXT, (uint8_t *) message.c_str(), message.length());
+                break;
+            case websockets::MessageType::Binary:
+                WS_DEBUG("get binary length: %u\n", length);
+                _callback(WSEvent_BIN, (uint8_t *) message.c_str(), message.length());
+                break;
+        }
+    });
+  }
+
+  /**
+   * @brief Connect to a websocket server
+   * 
+   * @param host String containing the host name or IP address of the server
+   * @param port Port number to connect to
+   * @param path Path to connect to on the server
+   */
+  void connect(WSInterfaceString host, int port, WSInterfaceString path);
+
+//   /**
+//    * @brief Connect to a websocket server using a secure connection
+//    * 
+//    * @param host String containing the host name or IP address of the server
+//    * @param port Port number to connect to
+//    * @param path Path to connect to on the server
+//    */
+//   void connectSecure(WSInterfaceString host, int port, WSInterfaceString path);
+
+  /**
+   * @brief Close the connection to the websocket server
+   * 
+   */
+  void close() {
+    shouldReconnect = false;
+    heartbeatMissed = 0;
+    heartbeatInProgress = false;
+    websockets::WebsocketsClient::close();
+  }
+
+  /**
+   * @brief Enable a heartbeat to keep the connection alive
+   * 
+   * @param interval Time in milliseconds between heartbeats
+   * @param timeout Time in milliseconds to wait for a response to the heartbeat
+   * @param maxMissed Maximum number of missed heartbeats before closing the connection
+   */
+  void enableHeartbeat(unsigned long interval, unsigned long timeout, uint8_t maxMissed);
+
+  /**
+   * @brief Disable the heartbeat
+   * 
+   */
+  void disableHeartbeat();
+
+  /**
+   * @brief Sets the interval between reconnection attempts
+   * 
+   * @param interval Time in milliseconds between reconnection attempts
+   */
+  void setReconnectInterval(unsigned long interval);
+
+  /**
+   * @brief Poll the websocket connection
+   * 
+   */
+  void poll();
+
+  /**
+   * @brief Set the callback function to run when an event occurs
+   * 
+   * @param callback Function to run when an event occurs
+   */
+  void onEvent(WebSocketEventCallback callback);
+
+  /**
+   * @brief Enable streaming mode
+   * @return true Streaming mode enabled
+   * @return false Streaming mode not enabled
+   */
+  bool stream();
+
+  /**
+   * @brief Send a text message to the server
+   * @param payload Data to send
+   * @param length Length of the data to send
+   * @param headerToPayload bool  (see sendFrame for more details)
+   * @return true Message was successful
+   * @return false Message was unsuccessful
+  */
+  bool send(uint8_t *payload, size_t length, bool headerToPayload = false);
+
+  /**
+   * @brief Send a text message to the server
+   * @param payload Data to send
+   * @param length Length of the data to send
+   * @param headerToPayload bool  (see sendFrame for more details)
+   * @return true Message was successful
+   * @return false Message was unsuccessful
+  */
+  bool send(const char *payload, size_t length, bool headerToPayload = false);
+
+  /**
+   * @brief End the stream
+   * @return true Stream ended
+   * @return false Stream failed to end
+  */
+  bool end();
+
+private:
+  unsigned int heartbeatInterval = 0;
+  unsigned int heartbeatTimeout = 0;
+  unsigned long heartbeatLastSent = 0;
+  unsigned int heartbeatMissed = 0;
+  unsigned int heartbeatMaxMissed = 0;
+  bool heartbeatInProgress = false;
+  bool heartbeatEnabled = false;
+
+  unsigned int reconnectInterval = 500;
+  unsigned long reconnectLastAttempt = 0;
+  bool shouldReconnect = false;
+
+  WSInterfaceString host;
+  int port;
+  WSInterfaceString path;
+
+  WebSocketEventCallback eventCallback = nullptr;
+
+  void _callback(WSEvent_t type, uint8_t * payload, size_t length) {
+    if (eventCallback) {
+      eventCallback(type, payload, length);
+    }
+  }
+
+  bool done = false;
+
+  bool isStreaming = false;
+};
+
+#endif
 
 #endif

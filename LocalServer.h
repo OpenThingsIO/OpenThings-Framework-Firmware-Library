@@ -1,7 +1,13 @@
 #ifndef OTF_LOCALSERVER_H
 #define OTF_LOCALSERVER_H
 
-#include <Arduino.h>
+#include <stdint.h>
+#include <stddef.h>
+
+#if defined(ARDUINO)
+    #include <Arduino.h>
+#endif
+
 
 namespace OTF {
   class LocalClient {
@@ -10,28 +16,30 @@ namespace OTF {
     virtual bool dataAvailable() = 0;
 
     /**
-     * Reads up to `length` bytes from the request stream into `buffer`.
-     * @return The number of bytes read.
+     * Reads up to `length` unsigned chars from the request stream into `buffer`.
+     * @return The number of unsigned chars read.
      */
     virtual size_t readBytes(char *buffer, size_t length) = 0;
 
     /**
-     * Reads up to `length` bytes from the request stream until `terminator` or the end of stream is reached.
-     * @return The number of bytes read.
+     * Reads up to `length` unsigned chars from the request stream until `terminator` or the end of stream is reached.
+     * @return The number of unsigned chars read.
      */
     virtual size_t readBytesUntil(char terminator, char *buffer, size_t length) = 0;
 
     /** Prints a null-terminated string to the response stream. This method may be called multiple times before the stream is closed. */
     virtual void print(const char *data) = 0;
 
+#if defined(ARDUINO)
     /** Prints a null-terminated string to the response stream. This method may be called multiple times before the stream is closed. */
     virtual void print(const __FlashStringHelper *data) = 0;
+#endif
 
-    /** Writes `size` bytes from `buffer` to the response stream. */
+    /** Writes `size` unsigned chars from `buffer` to the response stream. */
     virtual size_t write(const char *buffer, size_t size) = 0;
 
-    /** Returns the next character in the request stream (without advancing the stream), or returns -1 if no character is available. */
-    virtual int peek() = 0;
+    // /** Returns the next character in the request stream (without advancing the stream), or returns -1 if no character is available. */
+    // virtual int peek() = 0;
 
     /** Sets the maximum number of milliseconds to wait for data to be available when readBytes() is called. */
     virtual void setTimeout(int timeout) = 0;
