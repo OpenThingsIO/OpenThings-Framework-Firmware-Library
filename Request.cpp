@@ -11,7 +11,7 @@ Request::Request(char *str, size_t length, bool cloudRequest) {
   DEBUG(Serial.println(F("Parsing HTTP method"));)
   for (; index < length; index++) {
     if (str[index] == '\0') {
-      // Reject any requests that contain null characters outside of the body to prevent null unsigned char poisoning attacks.
+      // Reject any requests that contain null characters outside of the body to prevent null byte poisoning attacks.
       requestType = INVALID;
       return;
     } else if (str[index] == ' ') {
@@ -66,7 +66,7 @@ Request::Request(char *str, size_t length, bool cloudRequest) {
 
     character = str[index];
     if (character == '\0') {
-      // Reject any requests that contain null characters outside of the body to prevent null unsigned char poisoning attacks.
+      // Reject any requests that contain null characters outside of the body to prevent null byte poisoning attacks.
       requestType = INVALID;
       return;
     } else if (character == '?' || character == '#' || character == ' ') {
@@ -91,7 +91,7 @@ Request::Request(char *str, size_t length, bool cloudRequest) {
     // Skip over the fragment.
     while (index < length && (character = str[++index]) != ' ') {
       if (character == '\0') {
-        // Reject any requests that contain null characters outside of the body to prevent null unsigned char poisoning attacks.
+        // Reject any requests that contain null characters outside of the body to prevent null byte poisoning attacks.
         requestType = INVALID;
         return;
       }
@@ -106,7 +106,7 @@ Request::Request(char *str, size_t length, bool cloudRequest) {
   this->httpVersion = &str[index];
   for (; index < length; index++) {
     if (str[index] == '\0') {
-      // Reject any requests that contain null characters outside of the body to prevent null unsigned char poisoning attacks.
+      // Reject any requests that contain null characters outside of the body to prevent null byte poisoning attacks.
       requestType = INVALID;
       return;
     } else if (str[index] == '\r') {
@@ -159,7 +159,7 @@ char Request::parseQuery(char *str, size_t length, size_t &index) {
       char character = str[index];
 
       if (character == '\0') {
-        // Reject any requests that contain null characters outside of the body to prevent null unsigned char poisoning attacks.
+        // Reject any requests that contain null characters outside of the body to prevent null byte poisoning attacks.
         return '\0';
       }
 
@@ -209,7 +209,7 @@ bool Request::parseHeader(char *str, size_t length, size_t &index, LinkedMap<cha
 
   for (; index < length; index++) {
     if (str[index] == '\0') {
-      // Reject any requests that contain null characters outside of the body to prevent null unsigned char poisoning attacks.
+      // Reject any requests that contain null characters outside of the body to prevent null byte poisoning attacks.
       return false;
     } else if (str[index] == ':' && colon == nullptr) {
       colon = &str[index];
