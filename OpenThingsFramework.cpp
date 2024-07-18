@@ -127,7 +127,7 @@ void OpenThingsFramework::localServerLoop() {
     buffer[length++] = '\n';
     if(read==1 && rc=='\r') { break; }
   }
-  DEBUG(Serial.printf((char *) F("Finished reading data from client. Request line + headers were %d unsigned chars\n"), length);)
+  DEBUG(Serial.printf((char *) F("Finished reading data from client. Request line + headers were %d bytes\n"), length);)
   buffer[length] = 0;
 
   // Make sure that the headers were fully read into the buffer.
@@ -184,7 +184,7 @@ void OpenThingsFramework::localServerLoop() {
 
   if(bodyBuffer) delete[] bodyBuffer;
   if (res.isValid()) {
-    DEBUG(Serial.printf("Sent response, %d unsigned chars\n", res.getTotalLength());)
+    DEBUG(Serial.printf("Sent response, %d bytes\n", res.getTotalLength());)
   } else {
     localClient->print(F("HTTP/1.1 500 OTF error\r\nResponse string could not be built\r\n"));
     DEBUG(Serial.println(F("An error occurred while building the response string."));)
@@ -278,7 +278,7 @@ void OpenThingsFramework::webSocketEventCallback(WSEvent_t type, uint8_t *payloa
         res.end();
 
         if (res.isValid()) {
-          DEBUG(Serial.printf("Sent response, %d unsigned chars\n", res.getTotalLength());)
+          DEBUG(Serial.printf("Sent response, %d bytes\n", res.getTotalLength());)
         } else {
           DEBUG(Serial.println(F("An error occurred building response string"));)
           StringBuilder builder(100);
