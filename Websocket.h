@@ -246,6 +246,13 @@ public:
                 WS_DEBUG("get binary length: %u\n", length);
                 _callback(WSEvent_BIN, (uint8_t *) message.c_str(), message.length());
                 break;
+            case websockets::MessageType::Ping:
+            case websockets::MessageType::Pong:
+                //Already handled
+                break;
+            default:
+                WS_DEBUG("unsupported message type %u\n", message.type());
+                break;
         }
     });
   }
