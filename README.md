@@ -4,7 +4,7 @@ This library provides a single interface that can be used to handle HTTP request
 
 ### Required Libraries
 
-* [https://github.com/Links2004/arduinoWebSockets](links2004/WebSockets) (With PlatformIO it will automatically install this).
+* [https://github.com/Links2004/arduinoWebSockets](https://github.com/Links2004/arduinoWebSockets) (With PlatformIO it will automatically install this).
 
 ### Installation
 
