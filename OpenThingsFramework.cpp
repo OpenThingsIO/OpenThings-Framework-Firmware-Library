@@ -108,7 +108,11 @@ void OpenThingsFramework::localServerLoop() {
 
 
   // Update the timeout for each data read to ensure that the total timeout is WIFI_CONNECTION_TIMEOUT.
+  #if defined(ARDUINO)
   unsigned int timeout = millis()+WIFI_CONNECTION_TIMEOUT;
+  #else
+  unsigned long timeout = millis()+WIFI_CONNECTION_TIMEOUT;
+  #endif
 
 
   char *buffer = headerBuffer;
