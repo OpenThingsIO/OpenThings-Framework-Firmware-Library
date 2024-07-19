@@ -140,7 +140,7 @@ EthernetClient::EthernetClient(int sock)
 
 EthernetClient::~EthernetClient()
 {
-	stop();
+	if (tmpbuf) free(tmpbuf);
 }
 
 int EthernetClient::connect(const char* server, uint16_t port)
@@ -192,6 +192,9 @@ void EthernetClient::stop()
 		close(m_sock);
 		m_sock = 0;
 		m_connected = false;
+        tmpbufidx = tmpbufsize = 0;
+		free(tmpbuf);
+		tmpbuf = NULL;
 	}
 }
 
@@ -206,6 +209,15 @@ EthernetClient::operator bool()
 //	and return 0;
 int EthernetClient::read(uint8_t *buf, size_t size)
 {
+    if (tmpbufidx < tmpbufsize) {
+		size_t tmpsize = tmpbufsize-tmpbufidx;
+		if (tmpsize > size)
+			tmpsize = size;
+		memcpy(buf, &tmpbuf[tmpbufidx], tmpsize);
+		tmpbufidx += tmpsize;
+		return tmpsize;
+	}
+
 	struct pollfd fds;
 	memset(&fds, 0, sizeof(fds));
 	fds.fd = m_sock;
@@ -227,6 +239,35 @@ int EthernetClient::read(uint8_t *buf, size_t size)
 		m_connected = false;
 	return 0;
 }
+
+int EthernetClient::timedRead() {
+	if (!tmpbuf) tmpbuf = (uint8_t*)malloc(TMPBUF);
+	if (tmpbufidx < tmpbufsize)
+		return tmpbuf[tmpbufidx++];
+		
+	tmpbufidx = 0;
+	tmpbufsize = 0;
+	tmpbufsize = read(tmpbuf, TMPBUF);
+	
+	if (tmpbufsize <= 0)
+		return -1;
+		
+	return tmpbuf[tmpbufidx++];
+}
+
+size_t EthernetClient::readBytesUntil(char terminator, char *buffer, size_t length) {
+	size_t n = 0;
+	int c = timedRead();
+  	while (c >= 0 && c != terminator && length>0)
+  	{
+		buffer[n] = (char)c;
+		length--;
+		n++;
+		c = timedRead();
+	}
+	return n;
+}
+
 void EthernetClient::flush() {
 	//for compatibility only
 }
@@ -240,6 +281,9 @@ void EthernetClient::setTimeout(int msec) {
 }
 
 bool EthernetClient::available() {
+    if (tmpbufidx < tmpbufsize)
+        return true;
+        
 	if (!m_connected)
 		return false;
 
@@ -275,7 +319,7 @@ EthernetClientSsl::EthernetClientSsl(int sock)
 
 EthernetClientSsl::~EthernetClientSsl()
 {
-	stop();
+	// if (tmpbuf) free(tmpbuf);
 }
 
 /**

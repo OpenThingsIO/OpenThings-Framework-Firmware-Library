@@ -40,6 +40,8 @@
 #define MSG_NOSIGNAL SO_NOSIGPIPE
 #endif
 
+#define TMPBUF 1024*8
+
 class EthernetServer;
 
 class EthernetClient {
@@ -51,6 +53,8 @@ public:
 	virtual bool connected();
 	virtual void stop();
 	virtual int read(uint8_t *buf, size_t size);
+	virtual int timedRead();
+    virtual size_t readBytesUntil(char terminator, char *buffer, size_t length);
 	virtual size_t write(const uint8_t *buf, size_t size);
 	virtual operator bool();
 	virtual int GetSocket() {
@@ -60,6 +64,9 @@ public:
 	virtual bool available();
 	virtual void setTimeout(int msec);
 protected:
+	uint8_t *tmpbuf = NULL;
+	int tmpbufsize = 0;
+	int tmpbufidx = 0;
 	int m_sock = 0;
 	bool m_connected;
 	friend class EthernetServer;
