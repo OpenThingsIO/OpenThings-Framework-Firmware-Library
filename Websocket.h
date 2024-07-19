@@ -241,7 +241,7 @@ public:
     });
 
     websockets::WebsocketsClient::onMessage([this](websockets::WebsocketsMessage message) -> void {
-        WS_DEBUG("Received websocket message\n")
+        WS_DEBUG("Received websocket message\n");
         switch (message.type()) {
             case websockets::MessageType::Text:
                 WS_DEBUG("get text: %s\n", payload);
