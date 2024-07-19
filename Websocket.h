@@ -244,11 +244,11 @@ public:
         WS_DEBUG("Received websocket message\n");
         switch (message.type()) {
             case websockets::MessageType::Text:
-                WS_DEBUG("get text: %s\n", payload);
+                WS_DEBUG("get text: %s\n", message.c_str());
                 _callback(WSEvent_TEXT, (uint8_t *) message.c_str(), message.length());
                 break;
             case websockets::MessageType::Binary:
-                WS_DEBUG("get binary length: %u\n", length);
+                WS_DEBUG("get binary length: %u\n", message.length());
                 _callback(WSEvent_BIN, (uint8_t *) message.c_str(), message.length());
                 break;
             case websockets::MessageType::Ping:
