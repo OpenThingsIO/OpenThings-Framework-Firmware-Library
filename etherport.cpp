@@ -107,7 +107,7 @@ bool EthernetServer::begin()
 }
 
 //	This function blocks until we get a client connected.
-//	 It will timeout after 50ms and return a blank client.
+//	 It will timeout after 5ms and return a blank client.
 //	 If it succeeds it will return an EthernetClient.
 EthernetClient EthernetServer::available()
 {
@@ -115,7 +115,7 @@ EthernetClient EthernetServer::available()
 	memset(&fds, 0, sizeof(fds));
 	fds.fd = m_sock;
 	fds.events = POLLIN;
-	int timeout = 50;
+	int timeout = 5; // reduce this timeout for less blocking time
 
 	int rc = poll(&fds, 1, timeout);
 	if (rc > 0)
@@ -140,17 +140,24 @@ EthernetClient::EthernetClient(int sock)
 
 EthernetClient::~EthernetClient()
 {
-	if (tmpbuf) free(tmpbuf);
+	stop();
 }
 
-int EthernetClient::connect(uint8_t ip[4], uint16_t port)
+int EthernetClient::connect(const char* server, uint16_t port)
 {
 	if (m_sock)
 		return 0;
+
+	struct hostent *host = gethostbyname(server);
+	if (!host) {
+		DEBUG_ETHERPORT("Error: DNS look up failed\n");
+		return 0;
+	}
+
 	struct sockaddr_in sin = {0};
 	sin.sin_family = AF_INET;
 	sin.sin_port = htons(port);
-	sin.sin_addr.s_addr = *(uint32_t*) (ip);
+	sin.sin_addr.s_addr = *(uint32_t*) (host->h_addr);
 	m_sock = socket(AF_INET, SOCK_STREAM, 0);
 
 	struct timeval timeout;
@@ -161,7 +168,7 @@ int EthernetClient::connect(uint8_t ip[4], uint16_t port)
 
 	if (::connect(m_sock, (struct sockaddr *) &sin, sizeof(sin)) < 0)
 	{
-		DEBUG_ETHERPORT("error connecting to server");
+		DEBUG_ETHERPORT("Error: connecting to the server");
 		return 0;
 	}
 	m_connected = true;
@@ -185,9 +192,6 @@ void EthernetClient::stop()
 		close(m_sock);
 		m_sock = 0;
 		m_connected = false;
-		tmpbufidx = tmpbufsize = 0;
-		free(tmpbuf);
-		tmpbuf = NULL;
 	}
 }
 
@@ -202,15 +206,6 @@ EthernetClient::operator bool()
 //	and return 0;
 int EthernetClient::read(uint8_t *buf, size_t size)
 {
-	if (tmpbufidx < tmpbufsize) {
-		size_t tmpsize = tmpbufsize-tmpbufidx;
-		if (tmpsize > size)
-			tmpsize = size;
-		memcpy(buf, &tmpbuf[tmpbufidx], tmpsize);
-		tmpbufidx += tmpsize;
-		return tmpsize;
-	}
-
 	struct pollfd fds;
 	memset(&fds, 0, sizeof(fds));
 	fds.fd = m_sock;
@@ -232,47 +227,6 @@ int EthernetClient::read(uint8_t *buf, size_t size)
 		m_connected = false;
 	return 0;
 }
-
-int EthernetClient::timedRead() {
-	if (!tmpbuf) tmpbuf = (uint8_t*)malloc(TMPBUF);
-	if (tmpbufidx < tmpbufsize)
-		return tmpbuf[tmpbufidx++];
-		
-	tmpbufidx = 0;
-	tmpbufsize = 0;
-	tmpbufsize = read(tmpbuf, TMPBUF);
-	
-	if (tmpbufsize <= 0)
-		return -1;
-		
-	return tmpbuf[tmpbufidx++];
-}
-
-size_t EthernetClient::readBytesUntil(char terminator, char *buffer, size_t length) {
-	size_t n = 0;
-	int c = timedRead();
-  	while (c >= 0 && c != terminator && length>0)
-  	{
-		buffer[n] = (char)c;
-		length--;
-		n++;
-		c = timedRead();
-	}
-	return n;
-}
-
-std::string EthernetClient::readStringUntil(char terminator) {
-
-  std::string ret;
-  int c = timedRead();
-  while (c >= 0 && c != terminator)
-  {
-    ret += (char)c;
-    c = timedRead();
-  }
-  return ret;
-}
-
 void EthernetClient::flush() {
 	//for compatibility only
 }
@@ -281,14 +235,11 @@ void EthernetClient::setTimeout(int msec) {
 	struct timeval timeout;
 	timeout.tv_sec =  (msec / 1000);
 	timeout.tv_usec = (msec % 1000) * 1000;
-	setsockopt (m_sock, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
-	setsockopt (m_sock, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout));
+	setsockopt(m_sock, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
+	setsockopt(m_sock, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout));
 }
 
 bool EthernetClient::available() {
-	if (tmpbufidx < tmpbufsize)
-		return true;
-
 	if (!m_connected)
 		return false;
 
@@ -296,7 +247,7 @@ bool EthernetClient::available() {
 	memset(&fds, 0, sizeof(fds));
 	fds.fd = m_sock;
 	fds.events = POLLIN;
-	int timeout = 50;
+	int timeout = 5;
 
 	int rc = poll(&fds, 1, timeout);
 	return rc > 0;
@@ -310,14 +261,15 @@ size_t EthernetClient::write(const uint8_t *buf, size_t size)
 /**
  * SSL Client
 */
+static SSL_CTX* ctx = NULL;
 
 EthernetClientSsl::EthernetClientSsl()
-		: m_sock(0), m_connected(false)
+		: EthernetClient()
 {
 }
 
 EthernetClientSsl::EthernetClientSsl(int sock)
-		: m_sock(sock), m_connected(true)
+		: EthernetClient(sock)
 {
 }
 
@@ -326,60 +278,62 @@ EthernetClientSsl::~EthernetClientSsl()
 	stop();
 }
 
-static bool sslInit;
-//static BIO* certbio;
-static SSL_CTX* ctx;
-
 /**
  * https://github.com/angstyloop/c-web/blob/main/openssl-fetch-example.c
 */
-int EthernetClientSsl::connect(uint8_t ip[4], uint16_t port)
+int EthernetClientSsl::connect(const char* server, uint16_t port)
 {
 	if (m_sock)
 		return 0;
 
+	static bool sslInit = false;
 	if (!sslInit) {
-	    OpenSSL_add_all_algorithms();
-    	//ERR_load_BIO_strings();
-    	ERR_load_crypto_strings();
-    	SSL_load_error_strings();	
+		OpenSSL_add_all_algorithms();
+		//ERR_load_BIO_strings();
+		ERR_load_crypto_strings();
+		SSL_load_error_strings();	
 		//BIO* certbio = BIO_new(BIO_s_file());
-		if (SSL_library_init() < 0) 
-		{
-	        DEBUG_ETHERPORT("Could not initialize the OpenSSL library.\n");
+		//BIO* outbio = BIO_new_fp(stdout, BIO_NOCLOSE);
+		if (SSL_library_init() < 0)	{
+			DEBUG_ETHERPORT("Error: could not initialize the OpenSSL library.\n");
 			return 0;
 		}
 		const SSL_METHOD* method = SSLv23_client_method();
-	    ctx = SSL_CTX_new(method);
-	    if (!ctx) {
-        	DEBUG_ETHERPORT("Unable to create SSL context.\n");
+		ctx = SSL_CTX_new(method);
+		if (!ctx) {
+			DEBUG_ETHERPORT("Error: unable to create SSL context.\n");
 			return 0;
 		}
-		SSL_CTX_set_options(ctx, SSL_OP_NO_SSLv2|SSL_OP_NO_SSLv3);
+		SSL_CTX_set_options(ctx, SSL_OP_NO_SSLv2);
 		SSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, NULL); //Accept all certs
-
 		sslInit = true;
 	}
 
-
-    // Create a new SSL session. This does not connect the socket.
-    ssl = SSL_new(ctx);
+	struct hostent *host = gethostbyname(server);
+	if (!host) {
+		DEBUG_ETHERPORT("Error: DNS look up failed\n");
+		return 0;
+	}
+	// Create a new SSL session. This does not connect the socket.
+	ssl = SSL_new(ctx);
 
 	struct sockaddr_in sin = {0};
 	sin.sin_family = AF_INET;
 	sin.sin_port = htons(port);
-	sin.sin_addr.s_addr = *(uint32_t*) (ip);
+	sin.sin_addr.s_addr = *(long*) (host->h_addr);
 	m_sock = socket(AF_INET, SOCK_STREAM, 0);
-	if (::connect(m_sock, (struct sockaddr *) &sin, sizeof(sin)) < 0)
+	if (::connect(m_sock, (struct sockaddr *) &sin, sizeof(struct sockaddr)) < 0)
 	{
-		DEBUG_ETHERPORT("error connecting to server");
+		DEBUG_ETHERPORT("Error: connecting to the server failed");
 		return 0;
 	}
 	SSL_set_fd(ssl, m_sock);
+	SSL_set_tlsext_host_name(ssl, server);	// set correct host name
+
 	if (SSL_connect(ssl) < 1) {
 		close(m_sock);
 		m_sock = 0;
-       	DEBUG_ETHERPORT("Error: Could not build an SSL session");
+		DEBUG_ETHERPORT("Error: Could not build an SSL session");
 		return 0;
 	}
 	m_connected = true;
@@ -418,34 +372,30 @@ EthernetClientSsl::operator bool()
 //	This function will block until either data is received OR a timeout happens.
 //	If an error occurs or a timeout happens, we set the disconnect flag on the socket
 //	and return 0;
-int EthernetClientSsl::read(uint8_t *buf, size_t size)
-{
-	fd_set sock_set;
-	FD_ZERO(&sock_set);
-	FD_SET(m_sock, &sock_set);
+int EthernetClientSsl::read(uint8_t *buf, size_t size) {
+	fd_set readfds;
 	struct timeval timeout;
-	timeout.tv_sec = 3;
-	timeout.tv_usec = 0;
+	int sel_rc;
 
-	//select(m_sock + 1, &sock_set, NULL, NULL, &timeout);
-	//if (FD_ISSET(m_sock, &sock_set))
-	size_t pending = SSL_pending(ssl);
-	if (pending > 0)
-	{
-		if (size > pending)
-			size = pending;
-		int retval = SSL_read(ssl, buf, size);
-		if (retval <= 0) // socket closed
-			m_connected = false;
-		return retval;
+	FD_ZERO(&readfds);
+	FD_SET(m_sock, &readfds);
+	timeout.tv_sec  = 5;
+	timeout.tv_usec = 0;
+	sel_rc = select(m_sock + 1, &readfds, NULL, NULL, &timeout);
+	if(sel_rc < 1) {
+		m_connected = false;
+		return 0;
 	}
-	m_connected = false;
-	return 0;
+	size_t readsize;
+	int n = SSL_read_ex(ssl, buf, size, &readsize);
+	if(n<=0) {
+		m_connected = false;
+		return 0;
+	}
+	return readsize;
 }
 
-size_t EthernetClientSsl::write(const uint8_t *buf, size_t size)
-{
+size_t EthernetClientSsl::write(const uint8_t *buf, size_t size) {
 	return SSL_write(ssl, buf, size);
-	//return ::send(m_sock, buf, size, MSG_NOSIGNAL);
 }
 #endif

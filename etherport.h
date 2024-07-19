@@ -27,19 +27,18 @@
 
 #if defined(ARDUINO)
 
-#else // headers for RPI/BBB
+#else // headers for RPI/BBB/Linux
 
 #include <stdio.h>
 #include <inttypes.h>
 #include <ctype.h>
+#include <netdb.h>
 #include <openssl/ssl.h>
 #include <string>
 
 #ifdef __APPLE__
 #define MSG_NOSIGNAL SO_NOSIGPIPE
 #endif
-
-#define TMPBUF 1024*8
 
 class EthernetServer;
 
@@ -48,52 +47,37 @@ public:
 	EthernetClient();
 	EthernetClient(int sock);
 	~EthernetClient();
-	int connect(uint8_t ip[4], uint16_t port);
-	bool connected();
-	void stop();
-	int read(uint8_t *buf, size_t size);
-	int readBytes(char *buf, size_t size) { return read((uint8_t*)buf, size); };
-	int timedRead();
-	size_t readBytesUntil(char terminator, char *buffer, size_t length);
-	std::string readStringUntil(char value);
-	size_t write(const uint8_t *buf, size_t size);
-	operator bool();
-	int GetSocket()
-	{
+	virtual int connect(const char *server, uint16_t port);
+	virtual bool connected();
+	virtual void stop();
+	virtual int read(uint8_t *buf, size_t size);
+	virtual size_t write(const uint8_t *buf, size_t size);
+	virtual operator bool();
+	virtual int GetSocket() {
 		return m_sock;
 	}
-	void flush();
-	bool available();
-	void setTimeout(int msec);
-private:
-	uint8_t *tmpbuf = NULL;
-	int tmpbufsize = 0;
-	int tmpbufidx = 0;
+    virtual void flush();
+	virtual bool available();
+	virtual void setTimeout(int msec);
+protected:
 	int m_sock = 0;
 	bool m_connected;
 	friend class EthernetServer;
 };
 
-class EthernetClientSsl {
+class EthernetClientSsl : public EthernetClient {
 public:
 	EthernetClientSsl();
 	EthernetClientSsl(int sock);
 	~EthernetClientSsl();
-	int connect(uint8_t ip[4], uint16_t port);
-	bool connected();
-	void stop();
-	int read(uint8_t *buf, size_t size);
-	size_t write(const uint8_t *buf, size_t size);
-	operator bool();
-	int GetSocket()
-	{
-		return m_sock;
-	}
-private:
-	int m_sock;
+	virtual int connect(const char *server, uint16_t port);
+	virtual bool connected();
+	virtual void stop();
+	virtual int read(uint8_t *buf, size_t size);
+	virtual size_t write(const uint8_t *buf, size_t size);
+	virtual operator bool();
+protected:
 	SSL* ssl;
-	bool m_connected;
-	friend class EthernetServer;
 };
 
 class EthernetServer {
@@ -101,8 +85,8 @@ public:
 	EthernetServer(uint16_t port);
 	~EthernetServer();
 
-	bool begin();
-	EthernetClient available();
+	virtual bool begin();
+	virtual EthernetClient available();
 private:
 	uint16_t m_port;
 	int m_sock;

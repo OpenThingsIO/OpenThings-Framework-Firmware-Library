@@ -3,9 +3,17 @@
 
 // #define SERIAL_DEBUG
 #ifdef SERIAL_DEBUG
-#define DEBUG(x) x
+#if defined(ARDUINO)
+#define REQ_DEBUG(...)          \
+  Serial.print("Request: "); \
+  Serial.printf(__VA_ARGS__)
 #else
-#define DEBUG(x) 
+#define REQ_DEBUG(...)          \
+  printf("Request: "); \
+  printf(__VA_ARGS__)
+#endif
+#else
+#define REQ_DEBUG(...)
 #endif
 
 #if defined(ARDUINO)

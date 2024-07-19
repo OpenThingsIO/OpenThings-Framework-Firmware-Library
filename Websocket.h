@@ -12,11 +12,16 @@ typedef String WSInterfaceString;
 typedef const char* WSInterfaceString;
 #endif
 
-// #define ENABLE_DEBUG
-#ifdef ENABLE_DEBUG
+#ifdef SERIAL_DEBUG
+#if defined(ARDUINO)
 #define WS_DEBUG(...)          \
   Serial.print("Websocket: "); \
   Serial.printf(__VA_ARGS__)
+#else
+#define WS_DEBUG(...)          \
+  printf("Websocket: "); \
+  printf(__VA_ARGS__)
+#endif
 #else
 #define WS_DEBUG(...)
 #endif

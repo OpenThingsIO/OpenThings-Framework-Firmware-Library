@@ -42,11 +42,24 @@ bool LinuxLocalClient::dataAvailable() {
 }
 
 size_t LinuxLocalClient::readBytes(char *buffer, size_t length) {
-  return client.readBytes(buffer, length);
+  return client.read((uint8_t*) buffer, length);
 }
 
 size_t LinuxLocalClient::readBytesUntil(char terminator, char *buffer, size_t length) {
-  return client.readBytesUntil(terminator, buffer, length);
+    uint8_t buf[1] = {0};
+    int res = client.read(buf, 1);
+    char c = (char) buf[0];
+    size_t n = 0;
+
+    while (res >= 0 && c != terminator && length > 0) {
+        buffer[n] = c;
+        length--;
+        n++;
+        res = client.read(buf, 1);
+        c = (char) buf[0];
+    }
+
+    return n;
 }
 
 void LinuxLocalClient::print(const char *data) {

@@ -20,6 +20,20 @@
 #define LOCAL_SERVER_CLASS LinuxLocalServer
 #endif
 
+#ifdef SERIAL_DEBUG
+#if defined(ARDUINO)
+#define OTF_DEBUG(...)          \
+  Serial.print("OTF: "); \
+  Serial.printf(__VA_ARGS__)
+#else
+#define OTF_DEBUG(...)          \
+  printf("OTF: "); \
+  printf(__VA_ARGS__)
+#endif
+#else
+#define OTF_DEBUG(...)
+#endif
+
 #include "Websocket.h"
 
 // The size of the buffer to store the incoming request line and headers (does not include body). Larger requests will be discarded.
