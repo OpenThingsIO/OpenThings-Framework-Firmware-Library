@@ -1,6 +1,18 @@
 #ifndef OTF_REQUEST_H
 #define OTF_REQUEST_H
 
+#include "StringBuilder.hpp"
+
+#if defined(ARDUINO)
+    #include <Arduino.h>
+#endif
+
+#include "LinkedMap.h"
+#include <stddef.h>
+#include <stdlib.h>
+#include <ctype.h>
+#include <stdio.h>
+
 // #define SERIAL_DEBUG
 #ifdef SERIAL_DEBUG
 #if defined(ARDUINO)
@@ -15,16 +27,6 @@
 #else
 #define REQ_DEBUG(...)
 #endif
-
-#if defined(ARDUINO)
-    #include <Arduino.h>
-#endif
-
-#include "LinkedMap.h"
-#include <stddef.h>
-#include <stdlib.h>
-#include <ctype.h>
-
 
 namespace OTF {
 
