@@ -1,4 +1,4 @@
-#if defined(OSPI)
+#if !defined(ARDUINO)
 #ifndef OTF_LINUXLOCALSERVER_H
 #define OTF_LINUXLOCALSERVER_H
 

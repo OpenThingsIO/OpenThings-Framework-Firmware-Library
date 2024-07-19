@@ -1,4 +1,4 @@
-#if defined(OSPI)
+#if !defined(ARDUINO)
 #include "LinuxLocalServer.h"
 
 using namespace OTF;
