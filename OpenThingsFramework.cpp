@@ -37,7 +37,7 @@ OpenThingsFramework::OpenThingsFramework(uint16_t webServerPort, const char* web
 
   // Wrap the member function in a static function.
   webSocket->onEvent([this](WSEvent_t type, uint8_t *payload, size_t length) -> void {
-    OTF_DEBUG((char *) F("Received websocket event of type %d\n"), event);
+    OTF_DEBUG((char *) F("Received websocket event of type %d\n"), type);
     webSocketEventCallback(type, payload, length);
   });
 
