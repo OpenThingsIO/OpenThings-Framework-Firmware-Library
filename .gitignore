@@ -4,3 +4,4 @@ cmake-build-debug
 CMakeListsPrivate.txt
 private
 OTF-Controller-Library/example/config.h
+*.o

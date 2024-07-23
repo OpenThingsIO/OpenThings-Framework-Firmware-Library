@@ -37,6 +37,7 @@
 #include <string>
 
 #ifdef __APPLE__
+#undef MSG_NOSIGNAL
 #define MSG_NOSIGNAL SO_NOSIGPIPE
 #endif
 
@@ -57,7 +58,7 @@ public:
     virtual size_t readBytesUntil(char terminator, char *buffer, size_t length);
 	virtual size_t write(const uint8_t *buf, size_t size);
 	virtual operator bool();
-	virtual int GetSocket() {
+	int GetSocket() {
 		return m_sock;
 	}
     virtual void flush();

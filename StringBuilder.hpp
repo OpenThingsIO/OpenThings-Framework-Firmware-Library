@@ -9,7 +9,7 @@
 #include <stdint.h>
 #include <functional>
 #include <cstring>
-#define sprintf_P sprintf
+#define snprintf_P snprintf
 #define strncpy_P strncpy
 #define strcmp_P strcmp
 #define strncmp_P strncmp

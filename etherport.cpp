@@ -281,11 +281,13 @@ void EthernetClient::setTimeout(int msec) {
 }
 
 bool EthernetClient::available() {
-    if (tmpbufidx < tmpbufsize)
+    if (tmpbufidx < tmpbufsize) {
         return true;
+    }
         
-	if (!m_connected)
+	if (!m_connected) {
 		return false;
+    }
 
 	struct pollfd fds;
 	memset(&fds, 0, sizeof(fds));
