@@ -228,11 +228,14 @@ int EthernetClient::read(uint8_t *buf, size_t size)
 	if (rc > 0)
 	{
 		rc = recv(m_sock, buf, size, 0);
-		if (errno == EWOULDBLOCK)
+		if (rc < 0 && errno == EWOULDBLOCK) {
 			return 0;
+        }
 
-		if (rc <= 0) // socket closed
+		if (rc <= 0) { // socket closed
 			m_connected = false;
+        }
+        
 		return rc;
 	}
 	if (rc < 0)
