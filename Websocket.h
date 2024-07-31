@@ -19,8 +19,8 @@ typedef const char* WSInterfaceString;
   Serial.printf(__VA_ARGS__)
 #else
 #define WS_DEBUG(...)          \
-  printf("Websocket: "); \
-  printf(__VA_ARGS__)
+  fprintf(stdout, "Websocket: "); \
+  fprintf(stdout, __VA_ARGS__)
 #endif
 #else
 #define WS_DEBUG(...)

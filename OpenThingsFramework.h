@@ -27,8 +27,8 @@
   Serial.printf(__VA_ARGS__)
 #else
 #define OTF_DEBUG(...)          \
-  printf("OTF: "); \
-  printf(__VA_ARGS__)
+  fprintf(stdout, "OTF: "); \
+  fprintf(stdout, __VA_ARGS__)
 #endif
 #else
 #define OTF_DEBUG(...)

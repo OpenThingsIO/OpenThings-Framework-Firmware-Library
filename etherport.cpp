@@ -28,9 +28,9 @@
 
 #if defined(DEBUG)
 #defined DEBUG_ETHERPORT printf
-inline  void DEBUG_PRINT(int x) {printf("%d", x);}
-inline  void DEBUG_PRINT(const char*s) {printf("%s", s);}
-#define DEBUG_ETHERPORT(x)        {DEBUG_PRINT(x);printf("\n");}
+inline  void DEBUG_PRINT(int x) {fprintf(stdout, "%d", x);}
+inline  void DEBUG_PRINT(const char*s) {fprintf(stdout, "%s", s);}
+#define DEBUG_ETHERPORT(x)        {DEBUG_PRINT(x);fprintf(stdout, "\n");}
 #else
 #define DEBUG_ETHERPORT(x)
 #endif
