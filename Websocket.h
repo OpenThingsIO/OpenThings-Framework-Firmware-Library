@@ -373,9 +373,9 @@ private:
   unsigned long reconnectLastAttempt = 0;
   bool shouldReconnect = false;
 
-  WSInterfaceString host = NULL;
+  WSInterfaceString host;
   int port;
-  WSInterfaceString path = NULL;
+  WSInterfaceString path;
 
   WebSocketEventCallback eventCallback = nullptr;
 
