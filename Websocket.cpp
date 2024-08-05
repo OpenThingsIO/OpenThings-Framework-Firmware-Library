@@ -83,26 +83,26 @@ bool WebsocketClient::end() {
 #else
 
 void WebsocketClient::enableHeartbeat(unsigned long interval, unsigned long timeout, uint8_t maxMissed) {
-    heartbeatEnabled = true;
-    heartbeatInterval = interval;
-    heartbeatTimeout = timeout;
-    heartbeatMaxMissed = maxMissed;
+  heartbeatEnabled = true;
+  heartbeatInterval = interval;
+  heartbeatTimeout = timeout;
+  heartbeatMaxMissed = maxMissed;
 }
 
 void WebsocketClient::disableHeartbeat() {
-    heartbeatEnabled = false;
+  heartbeatEnabled = false;
 }
 
 void WebsocketClient::setReconnectInterval(unsigned long interval) {
-    reconnectInterval = interval;
+  reconnectInterval = interval;
 }
 
 unsigned long millis() {
-	struct timeval tv ;
-	uint64_t now ;
+  struct timeval tv;
+  uint64_t now;
 
-	gettimeofday(&tv, NULL) ;
-	return now  = (uint64_t)tv.tv_sec * (uint64_t)1000 + (uint64_t)(tv.tv_usec / 1000) ;
+  gettimeofday(&tv, NULL);
+  return now = (uint64_t) tv.tv_sec * (uint64_t) 1000 + (uint64_t) (tv.tv_usec / 1000);
 }
 
 void WebsocketClient::poll() {
@@ -137,7 +137,7 @@ void WebsocketClient::poll() {
     if (millis() - reconnectLastAttempt > reconnectInterval) {
       WS_DEBUG("Reconnecting...\n");
       // Attempt to reconnect
-        websockets::WebsocketsClient::connect(host, port, path);
+      websockets::WebsocketsClient::connect(host, port, path);
 
       WS_DEBUG("Reconnect attempt complete\n");
       WS_DEBUG("Connection status: %d\n", websockets::WebsocketsClient::available());
@@ -159,8 +159,8 @@ void WebsocketClient::connect(WSInterfaceString host, int port, WSInterfaceStrin
   shouldReconnect = true;
   heartbeatMissed = 0;
   heartbeatInProgress = false;
-//   isSecure = false;
-  websockets::WebsocketsClient::connect(host, port, path);
+  //   isSecure = false;
+  websockets::WebsocketsClient::connect(this->host.c_str(), this->port, this->path.c_str());
 }
 
 // void WebsocketClient::connectSecure(WSInterfaceString host, int port, WSInterfaceString path) {
@@ -172,7 +172,7 @@ void WebsocketClient::connect(WSInterfaceString host, int port, WSInterfaceStrin
 //   heartbeatMissed = 0;
 //   heartbeatInProgress = false;
 //   isSecure = true;
-//   websockets::WebsocketsClient::connect(host, port, path);
+//   websockets::WebsocketsClient::connect(this->host.c_str(), this->port, this->path.c_str());
 // }
 
 bool WebsocketClient::stream() {
@@ -180,16 +180,16 @@ bool WebsocketClient::stream() {
 }
 
 bool WebsocketClient::send(uint8_t *payload, size_t length, bool headerToPayload) {
-    return send((const char*) payload, length, headerToPayload);
+  return send((const char *) payload, length, headerToPayload);
 }
 
 bool WebsocketClient::send(const char *payload, size_t length, bool headerToPayload) {
-    WS_DEBUG("Sending message of length %d\n", length);
-    if (length == 0) {
-        length = strlen(payload);
-    }
+  WS_DEBUG("Sending message of length %d\n", length);
+  if (length == 0) {
+    length = strlen(payload);
+  }
 
-  return websockets::WebsocketsClient::send((const char*) payload, length);
+  return websockets::WebsocketsClient::send((const char *) payload, length);
 }
 
 bool WebsocketClient::end() {

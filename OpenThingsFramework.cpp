@@ -43,14 +43,19 @@ OpenThingsFramework::OpenThingsFramework(uint16_t webServerPort, const char* web
 
   if (useSsl) {
     OTF_DEBUG(F("Connecting to websocket with SSL\n"));
+    // #if defined(ARDUINO)
     // webSocket->connectSecure(webSocketHost, webSocketPort, "/socket/v1?deviceKey=" + deviceKey);
+    // #else
+    // std::string path = std::string("/socket/v1?deviceKey=") + deviceKey;
+    // webSocket->connectSecure(std::string(webSocketHost), webSocketPort, path);
+    // #endif
   } else {
     OTF_DEBUG(F("Connecting to websocket without SSL\n"));
     #if defined(ARDUINO)
     webSocket->connect(webSocketHost, webSocketPort, "/socket/v1?deviceKey=" + deviceKey);
     #else
     std::string path = std::string("/socket/v1?deviceKey=") + deviceKey;
-    webSocket->connect(webSocketHost, webSocketPort, path.c_str());
+    webSocket->connect(std::string(webSocketHost), webSocketPort, path);
     #endif
   }
   OTF_DEBUG(F("Initialized websocket\n"));

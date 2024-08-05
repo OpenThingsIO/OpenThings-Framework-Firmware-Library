@@ -9,7 +9,7 @@ typedef String WSInterfaceString;
 #include <tiny_websockets/client.hpp>
 #include <sys/time.h>
 #include <functional>
-typedef const char* WSInterfaceString;
+typedef std::string WSInterfaceString;
 #endif
 
 #ifdef SERIAL_DEBUG
@@ -262,6 +262,11 @@ public:
     });
   }
 
+  ~WebsocketClient() {
+    free(host);
+    free(path);
+  }
+
   /**
    * @brief Connect to a websocket server
    * 
@@ -373,9 +378,9 @@ private:
   unsigned long reconnectLastAttempt = 0;
   bool shouldReconnect = false;
 
-  WSInterfaceString host;
+  WSInterfaceString host = NULL;
   int port;
-  WSInterfaceString path;
+  WSInterfaceString path = NULL;
 
   WebSocketEventCallback eventCallback = nullptr;
 
