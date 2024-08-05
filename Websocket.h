@@ -262,11 +262,6 @@ public:
     });
   }
 
-  ~WebsocketClient() {
-    free(host);
-    free(path);
-  }
-
   /**
    * @brief Connect to a websocket server
    * 
