@@ -12,6 +12,7 @@
 namespace OTF {
   class LocalClient {
   public:
+    virtual ~LocalClient() {};
     /** Returns a boolean indicating if data is currently available from this client. */
     virtual bool dataAvailable() = 0;
 
@@ -50,6 +51,7 @@ namespace OTF {
 
   class LocalServer {
   public:
+    virtual ~LocalServer() {};
     /**
      * Closes the active client (if one is active) and accepts a new client (if one is available).
      * @return The newly accepted client, or `nullptr` if none was available.

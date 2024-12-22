@@ -11,7 +11,7 @@
 
 using namespace OTF;
 
-OpenThingsFramework::OpenThingsFramework(uint16_t webServerPort, char *hdBuffer, int hdBufferSize) : localServer(webServerPort) {
+OpenThingsFramework::OpenThingsFramework(uint16_t webServerPort, char *hdBuffer, size_t hdBufferSize) : localServer(webServerPort) {
   OTF_DEBUG("Instantiating OTF...\n");
   if(hdBuffer != NULL) { // if header buffer is externally provided, use it directly
     headerBuffer = hdBuffer;
@@ -26,10 +26,10 @@ OpenThingsFramework::OpenThingsFramework(uint16_t webServerPort, char *hdBuffer,
 
 #if defined(ARDUINO)
 OpenThingsFramework::OpenThingsFramework(uint16_t webServerPort, const String &webSocketHost, uint16_t webSocketPort,
-                                         const String &deviceKey, bool useSsl, char *hdBuffer, int hdBufferSize) : OpenThingsFramework(webServerPort, hdBuffer, hdBufferSize) {
+                                         const String &deviceKey, bool useSsl, char *hdBuffer, size_t hdBufferSize) : OpenThingsFramework(webServerPort, hdBuffer, hdBufferSize) {
 #else
 OpenThingsFramework::OpenThingsFramework(uint16_t webServerPort, const char* webSocketHost, uint16_t webSocketPort,
-                                         const char* deviceKey, bool useSsl, char *hdBuffer, int hdBufferSize) : OpenThingsFramework(webServerPort, hdBuffer, hdBufferSize) {
+                                         const char* deviceKey, bool useSsl, char *hdBuffer, size_t hdBufferSize) : OpenThingsFramework(webServerPort, hdBuffer, hdBufferSize) {
 #endif
   setCloudStatus(UNABLE_TO_CONNECT);
   OTF_DEBUG(F("Initializing websocket...\n"));

@@ -14,6 +14,7 @@ namespace OTF {
     LinuxLocalClient(EthernetClient client);
     
   public:
+    virtual ~LinuxLocalClient() {}
     bool dataAvailable();
     size_t readBytes(char *buffer, size_t length);
     size_t readBytesUntil(char terminator, char *buffer, size_t length);
@@ -33,7 +34,7 @@ namespace OTF {
 
   public:
     LinuxLocalServer(uint16_t port);
-    ~LinuxLocalServer();
+    virtual ~LinuxLocalServer();
 
     LocalClient *acceptClient();
     void begin();
