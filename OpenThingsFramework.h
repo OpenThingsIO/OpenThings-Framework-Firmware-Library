@@ -63,7 +63,7 @@ namespace OTF {
     CLOUD_STATUS cloudStatus = NOT_ENABLED;
     unsigned long lastCloudStatusChangeTime = millis();
     char *headerBuffer = NULL;
-    int headerBufferSize = 0;
+    size_t headerBufferSize = 0;
 
     void webSocketEventCallback(WSEvent_t type, uint8_t *payload, size_t length);
 
@@ -80,7 +80,7 @@ namespace OTF {
      * @param hdBuffer externally provided header buffer (optional)
      * @param hdBufferSize size of the externally provided header buffer (optional)
      */
-    OpenThingsFramework(uint16_t webServerPort, char *hdBuffer = NULL, int hdBufferSize = HEADERS_BUFFER_SIZE);
+    OpenThingsFramework(uint16_t webServerPort, char *hdBuffer = NULL, size_t hdBufferSize = HEADERS_BUFFER_SIZE);
 
     /**
      * Initializes the library to listen on a local webserver and connect to a remote websocket.
@@ -94,10 +94,10 @@ namespace OTF {
      */
     #if defined(ARDUINO)
     OpenThingsFramework(uint16_t webServerPort, const String &webSocketHost, uint16_t webSocketPort,
-                    const String &deviceKey, bool useSsl, char *hdBuffer = NULL, int hdBufferSize = HEADERS_BUFFER_SIZE);
+                    const String &deviceKey, bool useSsl, char *hdBuffer = NULL, size_t hdBufferSize = HEADERS_BUFFER_SIZE);
     #else
     OpenThingsFramework(uint16_t webServerPort, const char *webSocketHost, uint16_t webSocketPort,
-                    const char *deviceKey, bool useSsl, char *hdBuffer = NULL, int hdBufferSize = HEADERS_BUFFER_SIZE);
+                    const char *deviceKey, bool useSsl, char *hdBuffer = NULL, size_t hdBufferSize = HEADERS_BUFFER_SIZE);
     #endif
 
     /**
