@@ -147,6 +147,12 @@ public:
   void onEvent(WebSocketEventCallback callback);
 
   /**
+   * @brief Sets is streaming to false, used for reconnecting
+   * 
+   */
+  void resetStreaming();
+
+  /**
    * @brief Enable streaming mode
    * @return true Streaming mode enabled
    * @return false Streaming mode not enabled
@@ -325,6 +331,12 @@ public:
    * @param callback Function to run when an event occurs
    */
   void onEvent(WebSocketEventCallback callback);
+
+  /**
+   * @brief Sets is streaming to false, used for reconnecting
+   * 
+   */
+  void resetStreaming();
 
   /**
    * @brief Enable streaming mode

@@ -227,6 +227,7 @@ void OpenThingsFramework::webSocketEventCallback(WSEvent_t type, uint8_t *payloa
       if (cloudStatus == CONNECTED) {
         // Make sure the cloud status is only set to disconnected if it was previously connected.
         setCloudStatus(DISCONNECTED);
+        this->webSocket->resetStreaming();
       }
       break;
     }
@@ -234,6 +235,7 @@ void OpenThingsFramework::webSocketEventCallback(WSEvent_t type, uint8_t *payloa
     case WSEvent_CONNECTED: {
       OTF_DEBUG(F("Websocket connection opened\n"));
       setCloudStatus(CONNECTED);
+      this->webSocket->resetStreaming();
       break;
     }
 

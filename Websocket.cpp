@@ -31,15 +31,19 @@ void WebsocketClient::connectSecure(WSInterfaceString host, int port, WSInterfac
   WebSocketsClient::beginSSL(host.c_str(), port, path.c_str());
 }
 
-bool WebsocketClient::stream() {
-  if (isStreaming) {
-    WS_DEBUG("Already streaming\n");
-    return false;
-  }
+void WebsocketClient::resetStreaming() {
+    isStreaming = false;
+}
 
+bool WebsocketClient::stream() {
   if (clientIsConnected(&_client)) {
+    if (isStreaming) {
+      WS_DEBUG("Already streaming\n");
+      return false;
+    }
     isStreaming = sendFrame(&_client, WSop_text, (uint8_t *) "", 0, false, false);
   } else {
+    WS_DEBUG("Client is not connected\n");
     isStreaming = false;
   }
 
@@ -174,6 +178,10 @@ void WebsocketClient::connect(WSInterfaceString host, int port, WSInterfaceStrin
 //   isSecure = true;
 //   websockets::WebsocketsClient::connect(this->host.c_str(), this->port, this->path.c_str());
 // }
+
+void WebsocketClient::resetStreaming() {
+    isStreaming = false;
+}
 
 bool WebsocketClient::stream() {
   return websockets::WebsocketsClient::stream();
