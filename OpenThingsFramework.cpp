@@ -130,7 +130,15 @@ void OpenThingsFramework::localServerLoop() {
       return;
     }
 
-    size_t read = localClient->readBytesUntil('\n', &buffer[length], min((int) (headerBufferSize - length - 1), headerBufferSize));
+    size_t size = 
+    #if defined(ARDUINO)
+    min
+    #else
+    std::min
+    #endif
+    ((int) (headerBufferSize - length - 1), headerBufferSize);
+    
+    size_t read = localClient->readBytesUntil('\n', &buffer[length], size);
     char rc = buffer[length];
     length += read;
     buffer[length++] = '\n';
@@ -167,7 +175,14 @@ void OpenThingsFramework::localServerLoop() {
         size_t bodyLength = 0;
         timeout = millis()+WIFI_CONNECTION_TIMEOUT;
         while (localClient->dataAvailable() && millis()<timeout) {
-          size_t read = localClient->readBytes(&bodyBuffer[bodyLength], min((int) (contentLength - bodyLength), 1024));
+          size_t size = 
+          #if defined(ARDUINO)
+          min
+          #else
+          std::min
+          #endif
+          ((int) (contentLength - bodyLength), 1024);
+          size_t read = localClient->readBytes(&bodyBuffer[bodyLength], size);
           bodyLength += read;
         }
         bodyBuffer[bodyLength] = 0;
