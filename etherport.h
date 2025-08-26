@@ -49,7 +49,7 @@ class EthernetClient {
 public:
 	EthernetClient();
 	EthernetClient(int sock);
-	~EthernetClient();
+	virtual ~EthernetClient();
 	virtual int connect(const char *server, uint16_t port);
 	virtual bool connected();
 	virtual void stop();
@@ -77,7 +77,7 @@ class EthernetClientSsl : public EthernetClient {
 public:
 	EthernetClientSsl();
 	EthernetClientSsl(int sock);
-	~EthernetClientSsl();
+	virtual ~EthernetClientSsl();
 	virtual int connect(const char *server, uint16_t port);
 	virtual bool connected();
 	virtual void stop();
