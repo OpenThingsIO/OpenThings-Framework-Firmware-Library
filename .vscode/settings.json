@@ -1,0 +1,4 @@
+{
+    "C_Cpp.default.compilerPath": "C:/Users/schlo/.platformio/packages/toolchain-riscv32-esp/bin/riscv32-esp-elf-gcc.exe",
+    "C_Cpp.default.configurationProvider": "ms-vscode.makefile-tools"
+}

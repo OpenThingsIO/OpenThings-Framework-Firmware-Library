@@ -1,9 +1,25 @@
 {
     "name": "OpenThings-Framework-Firmware-Library",
-    "version": "0.2.0",
-    "author": "rayshobby",
+    "version": "0.2.1",
+    "author": "rayshobby/OpenSprinklerShop",
     "description": "OpenThings Framework Library",
     "dependencies": {
-        "WebSockets": "links2004/WebSockets@^2.4.2"
+        "WebSockets": "opensprinklershop/arduinoWebSockets"
+    },
+    "build": {
+        "srcFilter": [
+            "+<*>",
+            "-<LinuxLocalServer.cpp>",
+            "-<LinuxLocalServer.h>",
+            "-<etherport.cpp>",
+            "-<etherport.h>"
+        ],
+        "flags": [
+            "-DARDUINO_ESP32"
+        ],
+        "unflags": [
+            "-Os",
+            "-mlongcalls"
+        ]
     }
 }

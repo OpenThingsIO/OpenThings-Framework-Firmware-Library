@@ -23,6 +23,7 @@ namespace OTF {
     void setTimeout(int timeout);
     void flush();
     void stop();
+    bool connected() { return client.connected(); }
   };
 
 

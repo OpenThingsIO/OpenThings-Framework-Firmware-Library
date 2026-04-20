@@ -1,0 +1,22 @@
+{
+    "configurations": [
+        {
+            "name": "ESP32",
+            "includePath": [
+                "${workspaceFolder}/**",
+                "C:/Users/${env:USERNAME}/.platformio/packages/framework-arduinoespressif32/cores/esp32",
+                "C:/Users/${env:USERNAME}/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32/include/**",
+                "C:/Users/${env:USERNAME}/.platformio/packages/toolchain-xtensa-esp32/xtensa-esp32-elf/include/**"
+            ],
+            "defines": [
+                "ESP32",
+                "ARDUINO=10816"
+            ],
+            "compilerPath": "C:/Users/${env:USERNAME}/.platformio/packages/toolchain-xtensa-esp32/bin/xtensa-esp32-elf-gcc.exe",
+            "cStandard": "c11",
+            "cppStandard": "c++17",
+            "intelliSenseMode": "gcc-x64"
+        }
+    ],
+    "version": 4
+}

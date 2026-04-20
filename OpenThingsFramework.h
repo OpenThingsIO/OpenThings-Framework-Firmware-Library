@@ -55,7 +55,7 @@ namespace OTF {
 
   class OpenThingsFramework {
   private:
-    LOCAL_SERVER_CLASS localServer = LOCAL_SERVER_CLASS(80);
+    LOCAL_SERVER_CLASS localServer;
     LocalClient *localClient = nullptr;
     WebsocketClient *webSocket = nullptr;
     LinkedMap<callback_t> callbacks;
@@ -67,13 +67,13 @@ namespace OTF {
 
     void webSocketEventCallback(WSEvent_t type, uint8_t *payload, size_t length);
 
-    void fillResponse(const Request &req, Response &res);
     void localServerLoop();
     void setCloudStatus(CLOUD_STATUS status);
 
     static void defaultMissingPageCallback(const Request &req, Response &res);
 
   public:
+    void fillResponse(const Request &req, Response &res);
     /**
      * Initializes the library to only listen on a local webserver.
      * @param webServerPort The local port to bind the webserver to.
@@ -106,7 +106,7 @@ namespace OTF {
      * @param path
      * @param callback
      */
-    void on(const char *path, callback_t callback, HTTPMethod method = HTTP_ANY);
+    void on(const char *path, callback_t callback, OTFHTTPMethod method = OTF_HTTP_ANY);
 
 #if defined(ARDUINO)
     /**
@@ -115,7 +115,7 @@ namespace OTF {
      * @param path
      * @param callback
      */
-    void on(const __FlashStringHelper *path, callback_t callback, HTTPMethod method = HTTP_ANY);
+    void on(const __FlashStringHelper *path, callback_t callback, OTFHTTPMethod method = OTF_HTTP_ANY);
 #endif
 
     /** Registers a callback function to run when a request is received but its path does not match a registered callback. */
@@ -123,11 +123,26 @@ namespace OTF {
 
     void loop();
 
+    /**
+     * Polls only the cloud websocket (if enabled).
+     * Useful when local request handling blocks for a while and websocket heartbeats must still be serviced.
+     */
+    void pollCloud();
+
+    /** Disconnects the cloud WebSocket and suppresses auto-reconnect. Call before operations that need all available RAM (e.g. TLS email). */
+    void disconnectCloud();
+
+    /** Re-enables the cloud WebSocket auto-reconnect after a disconnectCloud() call. */
+    void reconnectCloud();
+
     /** Returns the current status of the connection to the OpenThings Cloud server. */
     CLOUD_STATUS getCloudStatus();
 
     /** Returns the number of milliseconds since there was last a change in the cloud status. */
     unsigned long getTimeSinceLastCloudStatusChange();
+    
+    /** Returns a pointer to the local server instance. */
+    LOCAL_SERVER_CLASS* getServer() { return &localServer; }
   };
 }// namespace OTF
 

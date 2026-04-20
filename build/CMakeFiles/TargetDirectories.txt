@@ -1,0 +1,4 @@
+/data/Workspace/OpenThings-Framework-Firmware-Library/build/CMakeFiles/openthings-framework.dir
+/data/Workspace/OpenThings-Framework-Firmware-Library/build/CMakeFiles/test.dir
+/data/Workspace/OpenThings-Framework-Firmware-Library/build/CMakeFiles/edit_cache.dir
+/data/Workspace/OpenThings-Framework-Firmware-Library/build/CMakeFiles/rebuild_cache.dir

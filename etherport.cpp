@@ -66,7 +66,8 @@ EthernetServer::~EthernetServer()
 
 bool EthernetServer::begin()
 {
-	struct sockaddr_in6 sin = {0};
+	struct sockaddr_in6 sin;
+	memset(&sin, 0, sizeof(sin));
 	sin.sin6_family = AF_INET6;
 	sin.sin6_port = htons(m_port);
 	sin.sin6_addr = in6addr_any;
@@ -154,7 +155,8 @@ int EthernetClient::connect(const char* server, uint16_t port)
 		return 0;
 	}
 
-	struct sockaddr_in sin = {0};
+	struct sockaddr_in sin;
+	memset(&sin, 0, sizeof(sin));
 	sin.sin_family = AF_INET;
 	sin.sin_port = htons(port);
 	sin.sin_addr.s_addr = *(uint32_t*) (host->h_addr);
@@ -259,14 +261,20 @@ int EthernetClient::timedRead() {
 }
 
 size_t EthernetClient::readBytesUntil(char terminator, char *buffer, size_t length) {
+	// NOTE: the previous implementation read one byte ahead of the length check,
+	// which caused it to silently consume and discard one byte from the stream
+	// whenever the destination buffer filled exactly (no terminator yet).
+	// OTF reads request lines in 256-byte chunks via this function, so a single
+	// byte was dropped at every chunk boundary, producing subtle URL corruption
+	// (e.g. "%22%22" becoming "%22%2"). The corrected version only consumes a
+	// byte from the stream when there is room to store it.
 	size_t n = 0;
-	int c = timedRead();
-  	while (c >= 0 && c != terminator && length>0)
-  	{
-		buffer[n] = (char)c;
+	while (length > 0) {
+		int c = timedRead();
+		if (c < 0) break;                // timeout / EOF
+		if (c == (uint8_t)terminator) break; // terminator consumed, not stored
+		buffer[n++] = (char)c;
 		length--;
-		n++;
-		c = timedRead();
 	}
 	return n;
 }
@@ -366,7 +374,8 @@ int EthernetClientSsl::connect(const char* server, uint16_t port)
 	// Create a new SSL session. This does not connect the socket.
 	ssl = SSL_new(ctx);
 
-	struct sockaddr_in sin = {0};
+	struct sockaddr_in sin;
+	memset(&sin, 0, sizeof(sin));
 	sin.sin_family = AF_INET;
 	sin.sin_port = htons(port);
 	sin.sin_addr.s_addr = *(long*) (host->h_addr);

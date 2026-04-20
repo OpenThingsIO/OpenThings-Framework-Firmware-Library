@@ -87,6 +87,10 @@ namespace OTF {
       return _find(key, false);
     }
 
+    LinkedMapNode<T> *headNode() const {
+      return head;
+    }
+
     #if defined(ARDUINO)
     T find(const __FlashStringHelper *key) const {
       return _find((char *) key, true);

@@ -30,14 +30,14 @@
 
 namespace OTF {
 
-  enum HTTPMethod {
-    HTTP_ANY,
-    HTTP_GET,
-    HTTP_POST,
-    HTTP_PUT,
-    HTTP_PATCH,
-    HTTP_DELETE,
-    HTTP_OPTIONS
+  enum OTFHTTPMethod {
+    OTF_HTTP_ANY,
+    OTF_HTTP_GET,
+    OTF_HTTP_POST,
+    OTF_HTTP_PUT,
+    OTF_HTTP_PATCH,
+    OTF_HTTP_DELETE,
+    OTF_HTTP_OPTIONS
   };
 
   enum RequestType {
@@ -49,7 +49,7 @@ namespace OTF {
     friend class OpenThingsFramework;
 
   private:
-    enum HTTPMethod httpMethod;
+    enum OTFHTTPMethod httpMethod;
     char *httpVersion = nullptr;
     char *path = nullptr;
     LinkedMap<char *> queryParams;
@@ -104,6 +104,9 @@ namespace OTF {
 
     /** Returns the decoded value of the specified query parameter as a null-terminated string, or NULL if the parameter was not set in the request. */
     char *getQueryParameter(const char *key) const;
+
+    /** Returns the head node of the internal query parameter map (decoded). */
+    const LinkedMapNode<char *> *getQueryParameters() const;
 
 #if defined(ARDUINO)
     /** Returns the decoded value of the specified query parameter as a null-terminated string, or NULL if the parameter was not set in the request. */

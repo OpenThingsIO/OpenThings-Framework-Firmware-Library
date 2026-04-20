@@ -13,6 +13,7 @@ void Response::writeStatus(uint16_t statusCode, const String &statusMessage) {
   bprintf(F("HTTP/1.1 %d %s\r\n"), statusCode, statusMessage.c_str());
 }
 
+#if !defined(ESP32)
 void Response::writeStatus(uint16_t statusCode, const __FlashStringHelper *const statusMessage) {
   if (responseStatus > CREATED) {
     valid = false;
@@ -22,6 +23,8 @@ void Response::writeStatus(uint16_t statusCode, const __FlashStringHelper *const
 
   bprintf(F("HTTP/1.1 %d %s\r\n"), statusCode, statusMessage);
 }
+#endif
+
 #else
 void Response::writeStatus(uint16_t statusCode, const char *statusMessage) {
   if (responseStatus > CREATED) {
@@ -84,6 +87,16 @@ void Response::writeHeader(const __FlashStringHelper *const name, const __FlashS
 
   bprintf(F("%s: %s\r\n"), name, value);
 }
+
+void Response::writeHeader(const __FlashStringHelper *const name, const char *const value) {
+  if (responseStatus < STATUS_WRITTEN || responseStatus > HEADERS_WRITTEN) {
+    valid = false;
+    return;
+  }
+  responseStatus = HEADERS_WRITTEN;
+
+  bprintf(F("%s: %s\r\n"), name, value);
+}
 #else
 void Response::writeHeader(const char *name, int value) {
   if (responseStatus < STATUS_WRITTEN || responseStatus > HEADERS_WRITTEN) {
@@ -106,51 +119,33 @@ void Response::writeHeader(const char *name, const char *value) {
 }
 #endif
 
-void Response::writeBodyChunk(const char *const format, ...) {
-  if (responseStatus < STATUS_WRITTEN) {
-    valid = false;
-    return;
-  }
-  if (responseStatus != BODY_WRITTEN) {
-    bprintf("\r\n");
-    responseStatus = BODY_WRITTEN;
-  }
-
-  va_list args;
-  va_start(args, format);
-  bprintf(format, args);
-  va_end(args);
-}
-
-#if defined(ARDUINO)
-void Response::writeBodyChunk(const __FlashStringHelper *const format, ...) {
-  if (responseStatus < STATUS_WRITTEN) {
-    valid = false;
-    return;
-  }
-  if (responseStatus != BODY_WRITTEN) {
-    bprintf((char *) "\r\n");
-    responseStatus = BODY_WRITTEN;
-  }
-
-  va_list args;
-  va_start(args, format);
-  bprintf(format, args);
-  va_end(args);
-}
-#endif
-
 void Response::writeBodyData(const char *data, size_t length) {
   if (responseStatus < STATUS_WRITTEN) {
     valid = false;
     return;
   }
   if (responseStatus != BODY_WRITTEN) {
-    bprintf((char *) "\r\n");
+    appendStr("\r\n");
     responseStatus = BODY_WRITTEN;
   }
 
   write(data, length);
+}
+
+void Response::writeBodyChunk(const char *format, ...) {
+  if (responseStatus < STATUS_WRITTEN) {
+    valid = false;
+    return;
+  }
+  if (responseStatus != BODY_WRITTEN) {
+    appendStr("\r\n");
+    responseStatus = BODY_WRITTEN;
+  }
+
+  va_list args;
+  va_start(args, format);
+  bprintf(format, args);
+  va_end(args);
 }
 
 #if defined(ARDUINO)
@@ -160,7 +155,7 @@ void Response::writeBodyData(const __FlashStringHelper *const data, size_t lengt
     return;
   }
   if (responseStatus != BODY_WRITTEN) {
-    bprintf((char *) "\r\n");
+    appendStr("\r\n");
     responseStatus = BODY_WRITTEN;
   }
 

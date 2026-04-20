@@ -1,14 +1,21 @@
 #include "StringBuilder.hpp"
+#include <new>
 
 using namespace OTF;
 
 StringBuilder::StringBuilder(size_t maxLength) {
   this->maxLength = maxLength;
-  buffer = new char[maxLength];
+  buffer = new(std::nothrow) char[maxLength];
+  if (!buffer) {
+    this->maxLength = 0;
+    valid = false;
+    return;
+  }
+  buffer[0] = '\0';
 }
 
 StringBuilder::~StringBuilder() {
-  delete buffer;
+  delete[] buffer;
 }
 
 void StringBuilder::bprintf(const char *format, va_list args) {
@@ -17,8 +24,7 @@ void StringBuilder::bprintf(const char *format, va_list args) {
     return;
   }
 
-  size_t res = vsnprintf(&buffer[length], maxLength - length, format, args);
-
+  size_t res = vsnprintf(buffer+length, maxLength - length, format, args);
 
   if (streaming && ((res >= maxLength) || (length + res >= maxLength))) {
     // If in streaming mode flush the buffer and continue writing if the data doesn't fit.
@@ -26,7 +32,7 @@ void StringBuilder::bprintf(const char *format, va_list args) {
     first_message = false;
     stream_flush();
     clear();
-    res = vsnprintf(&buffer[length], maxLength - length, format, args);
+    res = vsnprintf(buffer+length, maxLength - length, format, args);
   }
 
   totalLength += res;
@@ -58,7 +64,39 @@ void StringBuilder::bprintf(const __FlashStringHelper *const format, ...) {
   bprintf(format, args);
   va_end(args);
 }
+
+void StringBuilder::appendStr(const __FlashStringHelper *const str) {
+  appendStr((const char *) str);
+}
+
 #endif
+
+void StringBuilder::appendStr(const char *str) {
+  if (!valid || str == nullptr) {
+    return;
+  }
+  size_t res = strlen(str);
+  strncpy(buffer+length, str, maxLength - length);
+
+  if (streaming && ((res >= maxLength) || (length + res >= maxLength))) {
+    // If in streaming mode flush the buffer and continue writing if the data doesn't fit.
+    stream_write(buffer, length, streaming);
+    first_message = false;
+    stream_flush();
+    clear();
+    strncpy(buffer+length, str, maxLength - length);
+  }
+
+  totalLength += res;
+  length += res;
+
+  // The builder is invalid if the string fits perfectly in the buffer since there wouldn't be room for the null terminator.
+  if (length >= maxLength) {
+    // snprintf will not allow more than the specified number of characters to be written to the buffer, so the length will be the buffer size.
+    length = maxLength;
+    valid = false;
+  }
+}
 
 size_t StringBuilder::_write(const char *data, size_t data_length, bool use_pgm) {
   if (!valid) {
@@ -90,14 +128,14 @@ size_t StringBuilder::_write(const char *data, size_t data_length, bool use_pgm)
       }
     } else {
       // Copy the data to the buffer.
-      #if defined(ARDUINO)
+      #if defined(ARDUINO) && !defined(ESP32)
       if (use_pgm) {
-        memcpy_P(&buffer[length], &data[write_index], write_length);
+        memcpy_P(buffer+length, (PGM_P)(&data[write_index]), write_length);
       } else {
-        memcpy(&buffer[length], &data[write_index], write_length);
+        memcpy(buffer+length, &data[write_index], write_length);
       }
     #else 
-    memcpy(&buffer[length], &data[write_index], write_length);
+    memcpy(buffer+length, &data[write_index], write_length);
     #endif
       length += write_length;
       totalLength += write_length;
@@ -114,10 +152,19 @@ size_t StringBuilder::write(const char *data, size_t data_length) {
   return _write(data, data_length, false);
 }
 
-#if defined(ARDUINO)
+size_t StringBuilder::write(const char *data) {
+  return _write(data, strlen(data), false);
+}
+
+#if defined(ARDUINO) 
 size_t StringBuilder::write_P(const __FlashStringHelper *const data, size_t data_length) {
   return _write((const char *) data, data_length, true);
 }
+
+size_t StringBuilder::write_P(const __FlashStringHelper *const data) {
+  return _write((const char *) data, strlen_P((PGM_P)data), true);
+}
+
 #endif
 
 void StringBuilder::enableStream(stream_write_t write, stream_flush_t flush, stream_end_t end) {
@@ -130,7 +177,9 @@ void StringBuilder::enableStream(stream_write_t write, stream_flush_t flush, str
 
 bool StringBuilder::end() {
   if (stream_end) {
-    stream_write(buffer, length, streaming);
+    if (buffer && length > 0) {
+      stream_write(buffer, length, streaming);
+    }
     stream_end();
     return true;
   }
@@ -138,6 +187,7 @@ bool StringBuilder::end() {
 }
 
 char *StringBuilder::toString() const {
+  if (!buffer) return nullptr;
   return &buffer[0];
 }
 
@@ -151,8 +201,8 @@ bool StringBuilder::isValid() {
 
 void StringBuilder::clear() {
   length = 0;
-  buffer[0] = '\0';
-  valid = true;
+  if (buffer) buffer[0] = '\0';
+  if (buffer) valid = true;
 }
 
 size_t StringBuilder::getMaxLength() const {

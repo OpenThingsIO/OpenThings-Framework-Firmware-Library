@@ -12,6 +12,8 @@
 namespace OTF {
   class LocalClient {
   public:
+    virtual ~LocalClient() = default;
+
     /** Returns a boolean indicating if data is currently available from this client. */
     virtual bool dataAvailable() = 0;
 
@@ -46,10 +48,15 @@ namespace OTF {
     
     virtual void flush() = 0;
     virtual void stop() = 0;
+    
+    /** Returns true if the client is still connected. */
+    virtual bool connected() = 0;
   };
 
   class LocalServer {
   public:
+    virtual ~LocalServer() = default;
+
     /**
      * Closes the active client (if one is active) and accepts a new client (if one is available).
      * @return The newly accepted client, or `nullptr` if none was available.
@@ -58,6 +65,9 @@ namespace OTF {
 
     /** Starts listening for connections. */
     virtual void begin() = 0;
+    
+    /** Returns true if the current request is HTTPS/secure, false for HTTP. */
+    virtual bool isCurrentRequestHttps() const { return false; }
   };
 }// namespace OTF
 

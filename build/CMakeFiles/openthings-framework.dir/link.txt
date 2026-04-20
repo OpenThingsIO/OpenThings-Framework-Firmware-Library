@@ -1,0 +1,2 @@
+/usr/bin/ar qc libopenthings-framework.a "CMakeFiles/openthings-framework.dir/etherport.cpp.o" "CMakeFiles/openthings-framework.dir/LinuxLocalServer.cpp.o" "CMakeFiles/openthings-framework.dir/OpenThingsFramework.cpp.o" "CMakeFiles/openthings-framework.dir/Request.cpp.o" "CMakeFiles/openthings-framework.dir/Response.cpp.o" "CMakeFiles/openthings-framework.dir/StringBuilder.cpp.o"
+/usr/bin/ranlib libopenthings-framework.a

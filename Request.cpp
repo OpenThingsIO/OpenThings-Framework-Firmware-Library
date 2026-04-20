@@ -1,4 +1,5 @@
 #include "Request.h"
+#include <ctype.h>
 
 using namespace OTF;
 
@@ -31,18 +32,18 @@ Request::Request(char *str, size_t length, bool cloudRequest) {
   }
 
   // Map the string to an enum value.
-  if (strcmp("GET", &str[0]) == 0) {
-    this->httpMethod = HTTP_GET;
-  } else if (strcmp("POST", &str[0]) == 0) {
-    this->httpMethod = HTTP_POST;
-  } else if (strcmp("PUT", &str[0]) == 0) {
-    this->httpMethod = HTTP_PUT;
-  } else if (strcmp("DELETE", &str[0]) == 0) {
-    this->httpMethod = HTTP_DELETE;
-  } else if (strcmp("OPTIONS", &str[0]) == 0) {
-    this->httpMethod = HTTP_OPTIONS;
-  } else if (strcmp("PATCH", &str[0]) == 0) {
-    this->httpMethod = HTTP_PATCH;
+  if (strcmp("GET", str) == 0) {
+    this->httpMethod = OTF_HTTP_GET;
+  } else if (strcmp("POST", str) == 0) {
+    this->httpMethod = OTF_HTTP_POST;
+  } else if (strcmp("PUT", str) == 0) {
+    this->httpMethod = OTF_HTTP_PUT;
+  } else if (strcmp("DELETE", str) == 0) {
+    this->httpMethod = OTF_HTTP_DELETE;
+  } else if (strcmp("OPTIONS", str) == 0) {
+    this->httpMethod = OTF_HTTP_OPTIONS;
+  } else if (strcmp("PATCH", str) == 0) {
+    this->httpMethod = OTF_HTTP_PATCH;
   } else {
     REQ_DEBUG(F("Could not match HTTP method\n"));
     // Error if the method isn't a standard method.
@@ -174,8 +175,28 @@ char Request::parseQuery(char *str, size_t length, size_t &index) {
           value = &str[index];
         }
 
+        // DEBUG: log raw encoded value for wto before decoding
+        if (strcmp(key, "wto") == 0) {
+          #if defined(ARDUINO)
+          Serial.printf("OTF DEBUG: wto raw encoded = '%s'\n", value);
+          #else
+          fprintf(stdout, "OTF DEBUG: wto raw encoded = '%s'\n", value);
+          fflush(stdout);
+          #endif
+        }
+
         decodeQueryParameter(value);
         REQ_DEBUG((char *) F("Found query parameter '%s' with value '%s'.\n"), key, value);
+
+        // DEBUG: log decoded value for wto after decoding
+        if (strcmp(key, "wto") == 0) {
+          #if defined(ARDUINO)
+          Serial.printf("OTF DEBUG: wto decoded = '%s'\n", value);
+          #else
+          fprintf(stdout, "OTF DEBUG: wto decoded = '%s'\n", value);
+          fflush(stdout);
+          #endif
+        }
 
         queryParams.add(key, value);
 
@@ -239,7 +260,7 @@ bool Request::parseHeader(char *str, size_t length, size_t &index, LinkedMap<cha
         }
       }
 
-      REQ_DEBUG((char *) F("Found header '%s' with value '%s'.\n"), lineStart, value);
+      //REQ_DEBUG((char *) F("Found header '%s' with value '%s'.\n"), lineStart, value);
       // TODO handle duplicate header fields by concatenating them with a comma.
       headers.add(lineStart, value);
 
@@ -261,18 +282,25 @@ void Request::decodeQueryParameter(char *value) {
   unsigned int offset = 0;
   unsigned int index = 0;
   while (value[index + offset] != '\0') {
-    REQ_DEBUG((char *) F("Index is %d and offset is %d\n"), index, offset);
+    //REQ_DEBUG((char *) F("Index is %d and offset is %d\n"), index, offset);
     char character = value[index + offset];
     if (character == '+') {
       character = ' ';
     } else if (character == '%') {
-      char highDigit = value[index + ++offset];
-      char lowDigit = value[index + ++offset];
+      char highDigit = value[index + offset + 1];
+      char lowDigit = value[index + offset + 2];
       if (highDigit == '\0' || lowDigit == '\0') {
         // Abort decoding because the query string is illegally formatted.
         return;
       }
-
+      // Validate both digits are actually hex. If not, emit a literal '%' and
+      // re-process the following character normally instead of silently
+      // producing a garbage byte via strtol (which tolerates non-hex input).
+      if (!isxdigit((unsigned char)highDigit) || !isxdigit((unsigned char)lowDigit)) {
+        value[index++] = '%';
+        continue;
+      }
+      offset += 2;
       char hex[3] = {highDigit, lowDigit, '\0'};
       character = strtol(hex, nullptr, 16);
     }
@@ -286,15 +314,17 @@ void Request::decodeQueryParameter(char *value) {
 
 char *Request::getPath() const { return path; }
 
-#if defined(ARDUINO)
+#if defined(ARDUINO) 
 char *Request::getQueryParameter(const __FlashStringHelper *key) const { return queryParams.find(key); }
 #endif
 
 char *Request::getQueryParameter(const char *key) const { return queryParams.find(key); }
 
+const LinkedMapNode<char *> *Request::getQueryParameters() const { return queryParams.headNode(); }
+
 char *Request::getHeader(const char *key) const { return headers.find(key); }
 
-#if defined(ARDUINO)
+#if defined(ARDUINO) 
 char *Request::getHeader(const __FlashStringHelper *key) const { return headers.find(key); }
 #endif
 

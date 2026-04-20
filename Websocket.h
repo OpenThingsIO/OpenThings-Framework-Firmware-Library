@@ -4,12 +4,30 @@
 #if defined(ARDUINO)
 #include <Arduino.h>
 #include <WebSocketsClient.h>
+#if defined(ESP32)
+#include <WiFi.h>
+#endif
 typedef String WSInterfaceString;
 #else
-#include <tiny_websockets/client.hpp>
+// Linux/non-Arduino environment
+// WebSocket support requires tiny_websockets library
+// If not available, WebSocket functionality will be disabled
 #include <sys/time.h>
 #include <functional>
+#include <string>
 typedef std::string WSInterfaceString;
+
+// Try to include if available, otherwise disable WebSocket
+#ifdef HAVE_TINY_WEBSOCKETS
+#include <tiny_websockets/client.hpp>
+#define WEBSOCKET_ENABLED 1
+#else
+#define WEBSOCKET_ENABLED 0
+#endif
+#endif
+
+#if defined(ARDUINO) && defined(ESP8266)
+#define WS_ESP8266_INITIAL_CONNECT_DELAY 15000UL
 #endif
 
 #ifdef SERIAL_DEBUG
@@ -22,6 +40,7 @@ typedef std::string WSInterfaceString;
   fprintf(stdout, "Websocket: "); \
   fprintf(stdout, __VA_ARGS__)
 #endif
+
 #else
 #define WS_DEBUG(...)
 #endif
@@ -55,10 +74,27 @@ public:
           break;
         case WStype_DISCONNECTED:
           WS_DEBUG("Disconnected!\n");
+          isStreaming = false;
+#if defined(ESP8266)
+          if (enableReconnect) {
+            if (reconnectBackoffInterval < reconnectInterval) {
+              reconnectBackoffInterval = reconnectInterval;
+            } else {
+              reconnectBackoffInterval = min(reconnectBackoffInterval * 2UL, 60000UL);
+            }
+            nextConnectAt = millis() + reconnectBackoffInterval;
+          }
+#endif
           _callback(WSEvent_DISCONNECTED, payload, length);
           break;
         case WStype_CONNECTED: {
           WS_DEBUG("Connected to url: %s\n", payload);
+          isStreaming = false;
+#if defined(ESP8266)
+          lastConnectAttempt = millis();
+          reconnectBackoffInterval = reconnectInterval;
+          nextConnectAt = lastConnectAttempt + reconnectInterval;
+#endif
           _callback(WSEvent_CONNECTED, payload, length);
         } break;
         case WStype_TEXT:
@@ -189,6 +225,9 @@ public:
 private:
   bool enableReconnect = false;
   unsigned long reconnectInterval = 0;
+  unsigned long reconnectBackoffInterval = 0;
+  unsigned long lastConnectAttempt = 0;
+  unsigned long nextConnectAt = 0;
 
   WSInterfaceString host;
   int port;
@@ -205,10 +244,15 @@ private:
   bool isSecure = false;
 
   bool isStreaming = false;
+
+  void beginStoredConnection();
 };
 
 #else
+// Linux/non-Arduino environment - Stub implementation when WebSocket not available
 unsigned long millis();
+
+#if WEBSOCKET_ENABLED
 
 class WebsocketClient : protected websockets::WebsocketsClient {
 public:
@@ -277,14 +321,14 @@ public:
    */
   void connect(WSInterfaceString host, int port, WSInterfaceString path);
 
-//   /**
-//    * @brief Connect to a websocket server using a secure connection
-//    * 
-//    * @param host String containing the host name or IP address of the server
-//    * @param port Port number to connect to
-//    * @param path Path to connect to on the server
-//    */
-//   void connectSecure(WSInterfaceString host, int port, WSInterfaceString path);
+  /**
+   * @brief Connect to a websocket server using a secure connection
+   * 
+   * @param host String containing the host name or IP address of the server
+   * @param port Port number to connect to
+   * @param path Path to connect to on the server
+   */
+  void connectSecure(WSInterfaceString host, int port, WSInterfaceString path);
 
   /**
    * @brief Close the connection to the websocket server
@@ -400,8 +444,36 @@ private:
   bool done = false;
 
   bool isStreaming = false;
+  bool isSecure = false;
 };
 
-#endif
+#else // WEBSOCKET_ENABLED
 
-#endif
+// Stub implementation when WebSocket is not available
+class WebsocketClient {
+public:
+  WebsocketClient() {}
+  void connect(WSInterfaceString host, int port, WSInterfaceString path) {
+    WS_DEBUG("WebSocket not available (tiny_websockets not found)\n");
+  }
+  void connectSecure(WSInterfaceString host, int port, WSInterfaceString path) {
+    WS_DEBUG("WebSocket not available (tiny_websockets not found)\n");
+  }
+  void close() {}
+  void enableHeartbeat(unsigned long interval, unsigned long timeout, uint8_t maxMissed) {}
+  void disableHeartbeat() {}
+  void setReconnectInterval(unsigned long interval) {}
+  void poll() {}
+  void onEvent(WebSocketEventCallback callback) {}
+  void resetStreaming() {}
+  bool stream() { return false; }
+  bool send(uint8_t *payload, size_t length, bool headerToPayload = false) { return false; }
+  bool send(const char *payload, size_t length, bool headerToPayload = false) { return false; }
+  bool end() { return false; }
+};
+
+#endif // WEBSOCKET_ENABLED
+
+#endif // Linux/non-Arduino
+
+#endif // WEBSOCKET_H

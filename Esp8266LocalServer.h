@@ -26,6 +26,7 @@ namespace OTF {
     void setTimeout(int timeout);
     void flush();
     void stop();
+    bool connected() { return client.connected(); }
   };
 
 
@@ -35,7 +36,7 @@ namespace OTF {
     Esp8266LocalClient *activeClient = nullptr;
 
   public:
-    Esp8266LocalServer(uint16_t port);
+    Esp8266LocalServer(uint16_t port = 80);
 
     LocalClient *acceptClient();
     void begin();
