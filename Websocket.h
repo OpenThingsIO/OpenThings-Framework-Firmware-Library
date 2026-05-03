@@ -10,7 +10,8 @@ typedef String WSInterfaceString;
 #include <sys/time.h>
 #include <stdint.h>
 #include <functional>
-typedef const char* WSInterfaceString;
+#include <string>
+typedef std::string WSInterfaceString;
 #endif
 
 #ifdef SERIAL_DEBUG
@@ -185,9 +186,9 @@ private:
   bool enableReconnect = false;
   uint32_t reconnectInterval = 0;
 
-  WSInterfaceString host;
+  std::string host;
   int port;
-  WSInterfaceString path;
+  std::string path;
 
   WebSocketEventCallback eventCallback = nullptr;
 

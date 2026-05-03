@@ -64,6 +64,7 @@ namespace OTF {
     uint32_t lastCloudStatusChangeTime = millis();
     char *headerBuffer = NULL;
     int headerBufferSize = 0;
+    bool ownsHeaderBuffer = false;
 
     void webSocketEventCallback(WSEvent_t type, uint8_t *payload, size_t length);
 
@@ -81,6 +82,13 @@ namespace OTF {
      * @param hdBufferSize size of the externally provided header buffer (optional)
      */
     OpenThingsFramework(uint16_t webServerPort, char *hdBuffer = NULL, int hdBufferSize = HEADERS_BUFFER_SIZE);
+
+    ~OpenThingsFramework();
+
+    OpenThingsFramework(const OpenThingsFramework &) = delete;
+    OpenThingsFramework &operator=(const OpenThingsFramework &) = delete;
+    OpenThingsFramework(OpenThingsFramework &&) = delete;
+    OpenThingsFramework &operator=(OpenThingsFramework &&) = delete;
 
     /**
      * Initializes the library to listen on a local webserver and connect to a remote websocket.

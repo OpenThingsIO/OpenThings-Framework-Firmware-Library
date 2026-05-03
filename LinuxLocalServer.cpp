@@ -6,9 +6,10 @@ using namespace OTF;
 LinuxLocalServer::LinuxLocalServer(uint16_t port) : server(port) {}
 
 LinuxLocalServer::~LinuxLocalServer() {
-  if (activeClient != nullptr)
+  if (activeClient != nullptr) {
     activeClient->stop();
     delete activeClient;
+  }
 }
 
 

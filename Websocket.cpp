@@ -158,7 +158,7 @@ void WebsocketClient::onEvent(WebSocketEventCallback callback) {
 }
 
 void WebsocketClient::connect(WSInterfaceString host, int port, WSInterfaceString path) {
-  WS_DEBUG("Connecting to ws://%s:%d%s\n", host, port, path);
+  WS_DEBUG("Connecting to ws://%s:%d%s\n", host.c_str(), port, path.c_str());
   this->host = host;
   this->port = port;
   this->path = path;

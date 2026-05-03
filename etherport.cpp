@@ -159,6 +159,10 @@ int EthernetClient::connect(const char* server, uint16_t port)
 	sin.sin_port = htons(port);
 	sin.sin_addr.s_addr = *(uint32_t*) (host->h_addr);
 	m_sock = socket(AF_INET, SOCK_STREAM, 0);
+	if (m_sock < 0) {
+		DEBUG_ETHERPORT("Error: creating socket");
+		return 0;
+	}
 
 	struct timeval timeout;
 	timeout.tv_sec = 2;
@@ -169,6 +173,8 @@ int EthernetClient::connect(const char* server, uint16_t port)
 	if (::connect(m_sock, (struct sockaddr *) &sin, sizeof(sin)) < 0)
 	{
 		DEBUG_ETHERPORT("Error: connecting to the server");
+		close(m_sock);
+		m_sock = 0;
 		return 0;
 	}
 	m_connected = true;
@@ -362,15 +368,29 @@ int EthernetClientSsl::connect(const char* server, uint16_t port)
 	}
 	// Create a new SSL session. This does not connect the socket.
 	ssl = SSL_new(ctx);
+	if (!ssl) {
+		DEBUG_ETHERPORT("Error: creating SSL session");
+		return 0;
+	}
 
 	struct sockaddr_in sin = {0};
 	sin.sin_family = AF_INET;
 	sin.sin_port = htons(port);
 	sin.sin_addr.s_addr = *(long*) (host->h_addr);
 	m_sock = socket(AF_INET, SOCK_STREAM, 0);
+	if (m_sock < 0) {
+		DEBUG_ETHERPORT("Error: creating socket");
+		SSL_free(ssl);
+		ssl = NULL;
+		return 0;
+	}
 	if (::connect(m_sock, (struct sockaddr *) &sin, sizeof(struct sockaddr)) < 0)
 	{
 		DEBUG_ETHERPORT("Error: connecting to the server failed");
+		close(m_sock);
+		m_sock = 0;
+		SSL_free(ssl);
+		ssl = NULL;
 		return 0;
 	}
 	SSL_set_fd(ssl, m_sock);
@@ -379,6 +399,8 @@ int EthernetClientSsl::connect(const char* server, uint16_t port)
 	if (SSL_connect(ssl) < 1) {
 		close(m_sock);
 		m_sock = 0;
+		SSL_free(ssl);
+		ssl = NULL;
 		DEBUG_ETHERPORT("Error: Could not build an SSL session");
 		return 0;
 	}

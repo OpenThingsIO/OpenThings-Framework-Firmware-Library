@@ -8,6 +8,12 @@
  * a 5 second timeout.
  */
 #define WEBSOCKET_RECONNECT_INTERVAL 5000
+// Upper bound on Content-Length we'll allocate for the request body. Anything
+// larger is rejected with 413 — protects against rogue/malformed clients
+// declaring huge bodies that would exhaust heap on small targets.
+#ifndef OTF_MAX_BODY_SIZE
+#define OTF_MAX_BODY_SIZE 8192
+#endif
 
 using namespace OTF;
 
@@ -16,13 +22,22 @@ OpenThingsFramework::OpenThingsFramework(uint16_t webServerPort, char *hdBuffer,
   if(hdBuffer != NULL) { // if header buffer is externally provided, use it directly
     headerBuffer = hdBuffer;
     headerBufferSize = (hdBufferSize > 0) ? hdBufferSize : HEADERS_BUFFER_SIZE;
+    ownsHeaderBuffer = false;
   } else { // otherwise allocate one
     headerBuffer = new char[HEADERS_BUFFER_SIZE];
     headerBufferSize = HEADERS_BUFFER_SIZE;
+    ownsHeaderBuffer = true;
   }
   missingPageCallback = defaultMissingPageCallback;
   localServer.begin();
 };
+
+OpenThingsFramework::~OpenThingsFramework() {
+  delete webSocket;
+  if (ownsHeaderBuffer) {
+    delete[] headerBuffer;
+  }
+}
 
 #if defined(ARDUINO)
 OpenThingsFramework::OpenThingsFramework(uint16_t webServerPort, const String &webSocketHost, uint16_t webSocketPort,
@@ -50,7 +65,7 @@ OpenThingsFramework::OpenThingsFramework(uint16_t webServerPort, const char* web
     webSocket->connect(webSocketHost, webSocketPort, "/socket/v1?deviceKey=" + deviceKey);
     #else
     std::string path = std::string("/socket/v1?deviceKey=") + deviceKey;
-    webSocket->connect(webSocketHost, webSocketPort, path.c_str());
+    webSocket->connect(std::string(webSocketHost), webSocketPort, path);
     #endif
   }
   OTF_DEBUG(F("Initialized websocket\n"));
@@ -172,12 +187,20 @@ void OpenThingsFramework::localServerLoop() {
       long contentLength = atol(contentLengthString);
       #endif
       // If the header specifies a length of 0 or could not be parsed, the message has no body.
+      if (contentLength > OTF_MAX_BODY_SIZE) {
+        OTF_DEBUG((char *) F("Content-Length %ld exceeds OTF_MAX_BODY_SIZE\n"), contentLength);
+        localClient->print(F("HTTP/1.1 413 Payload Too Large\r\n\r\nThe request body exceeds the configured limit"));
+        localClient->flush();
+        localClient->stop();
+        localClient = localServer.acceptClient();
+        return;
+      }
       if (contentLength > 0) {
         // Read the body from the client.
-        bodyBuffer = new char[contentLength];
+        bodyBuffer = new char[contentLength + 1];
         size_t bodyLength = 0;
         timeout = millis()+WIFI_CONNECTION_TIMEOUT;
-        while (localClient->dataAvailable() && millis()<timeout) {
+        while (bodyLength < (size_t)contentLength && localClient->dataAvailable() && millis()<timeout) {
           size_t size =
           #if defined(ARDUINO)
           min
@@ -186,6 +209,7 @@ void OpenThingsFramework::localServerLoop() {
           #endif
           ((int) (contentLength - bodyLength), 1024);
           size_t read = localClient->readBytes(&bodyBuffer[bodyLength], size);
+          if (read == 0) break;
           bodyLength += read;
         }
         bodyBuffer[bodyLength] = 0;
