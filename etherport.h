@@ -50,6 +50,16 @@ public:
 	EthernetClient();
 	EthernetClient(int sock);
 	~EthernetClient();
+
+	// Deep-copy semantics for tmpbuf so a duplicated client doesn't end up
+	// sharing the buffer (which would cause double-free on destruction).
+	// m_sock is duplicated as-is — fd ownership stays with whoever calls
+	// stop(); the destructor does not close the fd.
+	EthernetClient(const EthernetClient &other);
+	EthernetClient &operator=(const EthernetClient &other);
+	EthernetClient(EthernetClient &&other) noexcept;
+	EthernetClient &operator=(EthernetClient &&other) noexcept;
+
 	virtual int connect(const char *server, uint16_t port);
 	virtual bool connected();
 	virtual void stop();
@@ -78,6 +88,12 @@ public:
 	EthernetClientSsl();
 	EthernetClientSsl(int sock);
 	~EthernetClientSsl();
+
+	// SSL session pointer cannot be safely shared — disallow copy/move.
+	EthernetClientSsl(const EthernetClientSsl &) = delete;
+	EthernetClientSsl &operator=(const EthernetClientSsl &) = delete;
+	EthernetClientSsl(EthernetClientSsl &&) = delete;
+	EthernetClientSsl &operator=(EthernetClientSsl &&) = delete;
 	virtual int connect(const char *server, uint16_t port);
 	virtual bool connected();
 	virtual void stop();

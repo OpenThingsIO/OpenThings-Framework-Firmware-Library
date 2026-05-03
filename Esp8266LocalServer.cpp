@@ -10,7 +10,7 @@ LocalClient *Esp8266LocalServer::acceptClient() {
     delete activeClient;
   }
 
-  WiFiClient wiFiClient = server.available();
+  WiFiClient wiFiClient = server.accept();
   if (wiFiClient) {
     activeClient = new Esp8266LocalClient(wiFiClient);
   } else {

@@ -13,6 +13,10 @@ void WebsocketClient::setReconnectInterval(uint32_t interval) {
   WebSocketsClient::setReconnectInterval(interval);
 }
 
+void WebsocketClient::resetStreaming() {
+  isStreaming = false;
+}
+
 void WebsocketClient::poll() {
   WebSocketsClient::loop();
 }
@@ -95,6 +99,10 @@ void WebsocketClient::disableHeartbeat() {
 
 void WebsocketClient::setReconnectInterval(uint32_t interval) {
     reconnectInterval = interval;
+}
+
+void WebsocketClient::resetStreaming() {
+    isStreaming = false;
 }
 
 // Arduino-compatible millis() for non-Arduino targets: ms since first call,

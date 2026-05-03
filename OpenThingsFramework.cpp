@@ -76,18 +76,25 @@ OpenThingsFramework::OpenThingsFramework(uint16_t webServerPort, const char* web
   webSocket->enableHeartbeat(15000, 5000, 1);
 }
 
-char *makeMapKey(StringBuilder *sb, HTTPMethod method, const char *path) {
-  sb->bprintf(F("%d%s"), method, path);
-  return sb->toString();
+// Allocate a route key sized exactly for "<methodDigit><path>". Caller passes
+// the resulting pointer to LinkedMap::addOwned, which transfers ownership to
+// the node and frees it on destruction.
+static char *makeStoredKey(HTTPMethod method, const char *path) {
+  int len = snprintf(nullptr, 0, "%d%s", (int)method, path);
+  char *key = new char[len + 1];
+  snprintf(key, len + 1, "%d%s", (int)method, path);
+  return key;
 }
 
 void OpenThingsFramework::on(const char *path, callback_t callback, HTTPMethod method) {
-  callbacks.add(makeMapKey(new StringBuilder(KEY_MAX_LENGTH), method, path), callback);
+  callbacks.addOwned(makeStoredKey(method, path), callback);
 }
 
 #if defined(ARDUINO)
 void OpenThingsFramework::on(const __FlashStringHelper *path, callback_t callback, HTTPMethod method) {
-  callbacks.add(makeMapKey(new StringBuilder(KEY_MAX_LENGTH), method, (char *) path), callback);
+  // Cast: works on ESP8266/ESP32 where flash is byte-addressable like RAM.
+  // Not portable to AVR — same constraint as the previous makeMapKey path.
+  callbacks.addOwned(makeStoredKey(method, (const char *)path), callback);
 }
 #endif
 
@@ -150,7 +157,7 @@ void OpenThingsFramework::localServerLoop() {
 
     // Selective headers to keep
     if (strncasecmp(line, "content-length:", 15) == 0) {
-      if (length + lineLen + 1 < headerBufferSize - 4) {
+      if (length + lineLen + 1 < (size_t)(headerBufferSize - 4)) {
         memcpy(&buffer[length], line, lineLen);
         length += lineLen;
         buffer[length++] = '\n';
@@ -270,12 +277,17 @@ void OpenThingsFramework::webSocketEventCallback(WSEvent_t type, uint8_t *payloa
         // Make sure the cloud status is only set to disconnected if it was previously connected.
         setCloudStatus(DISCONNECTED);
       }
+      // Clear any in-progress stream state — a disconnect during a response
+      // would otherwise leave isStreaming stuck true and break subsequent
+      // streams after reconnect.
+      this->webSocket->resetStreaming();
       break;
     }
 
     case WSEvent_CONNECTED: {
       OTF_DEBUG(F("Websocket connection opened\n"));
       setCloudStatus(CONNECTED);
+      this->webSocket->resetStreaming();
       break;
     }
 
@@ -363,18 +375,25 @@ void OpenThingsFramework::fillResponse(const Request &req, Response &res) {
 
   // TODO handle trailing slash in path?
   OTF_DEBUG((char *) F("Attempting to route request to path '%s'\n"), req.getPath());
-  StringBuilder *sb = new StringBuilder(KEY_MAX_LENGTH);
-  char *key = makeMapKey(sb, req.httpMethod, req.getPath());
-  callback_t callback = callbacks.find(key);
+  // Stack buffer for lookup keys — registered route keys are short
+  // (OS firmware's longest is ~5 chars including method digit + null).
+  // If the formatted key would not fit, the lookup is skipped — a request
+  // path longer than this cap falls through to missingPageCallback rather
+  // than risk a misroute via a truncated key.
+  char lookupKey[64];
+  callback_t callback = nullptr;
+  int n = snprintf(lookupKey, sizeof(lookupKey), "%d%s", (int)req.httpMethod, req.getPath());
+  if (n > 0 && (size_t)n < sizeof(lookupKey)) {
+    callback = callbacks.find(lookupKey);
+  }
   // If there isn't a callback for the specific method, check if there's one for any method.
   if (callback == nullptr) {
-    delete sb;
-    sb = new StringBuilder(KEY_MAX_LENGTH);
-
-    callback = callbacks.find(makeMapKey(sb, HTTP_ANY, req.getPath()));
+    n = snprintf(lookupKey, sizeof(lookupKey), "%d%s", (int)HTTP_ANY, req.getPath());
+    if (n > 0 && (size_t)n < sizeof(lookupKey)) {
+      callback = callbacks.find(lookupKey);
+    }
   }
 
-  delete sb;
   OTF_DEBUG((char *) F("callback=%x\n"), callback);
   if (callback != nullptr) {
     OTF_DEBUG(F("Found callback\n"));

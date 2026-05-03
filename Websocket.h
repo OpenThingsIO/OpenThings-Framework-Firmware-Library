@@ -136,8 +136,15 @@ public:
   void setReconnectInterval(uint32_t interval);
 
   /**
+   * @brief Force the streaming flag to false. Call on connection state
+   * changes so a stream interrupted by a disconnect doesn't leave the
+   * flag stuck at true after reconnect.
+   */
+  void resetStreaming();
+
+  /**
    * @brief Poll the websocket connection
-   * 
+   *
    */
   void poll();
 
@@ -186,9 +193,9 @@ private:
   bool enableReconnect = false;
   uint32_t reconnectInterval = 0;
 
-  std::string host;
+  WSInterfaceString host;
   int port;
-  std::string path;
+  WSInterfaceString path;
 
   WebSocketEventCallback eventCallback = nullptr;
 
@@ -316,8 +323,15 @@ public:
   void setReconnectInterval(uint32_t interval);
 
   /**
+   * @brief Force the streaming flag to false. Call on connection state
+   * changes so a stream interrupted by a disconnect doesn't leave the
+   * flag stuck at true after reconnect.
+   */
+  void resetStreaming();
+
+  /**
    * @brief Poll the websocket connection
-   * 
+   *
    */
   void poll();
 

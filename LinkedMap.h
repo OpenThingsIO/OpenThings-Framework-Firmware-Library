@@ -1,7 +1,6 @@
 #ifndef OTF_LINKEDMAP_H
 #define OTF_LINKEDMAP_H
 
-#define KEY_MAX_LENGTH 100
 #if defined(ARDUINO)
 #include <Arduino.h>
 #else
@@ -73,8 +72,16 @@ namespace OTF {
       }
     }
 
+    // Borrowed: caller owns the key buffer; node does not free it.
     void add(const char *key, T value) {
       _add(new LinkedMapNode<T>(key, value));
+    }
+
+    // Owned: node takes ownership of a heap-allocated `new char[]` key
+    // and frees it on destruction. Non-const parameter signals ownership
+    // transfer and rejects string literals at the call site.
+    void addOwned(char *key, T value) {
+      _add(new LinkedMapNode<T>(key, value, true));
     }
 
     #if defined(ARDUINO)
@@ -97,32 +104,30 @@ namespace OTF {
   template<class T>
   class LinkedMapNode {
   private:
-    /** Indicates if the key was copied into RAM from flash memory and needs to be freed when the object is destroyed. */
-    bool keyFromFlash = false;
+    /** True if the node owns its key buffer (allocated via `new char[]`)
+     * and must free it on destruction. False for borrowed pointers
+     * (e.g., keys pointing into a parsed request buffer). */
+    bool ownsKey = false;
 
   public:
     const char *key = nullptr;
     T value;
     LinkedMapNode<T> *next = nullptr;
 
-    // LinkedMapNode(const __FlashStringHelper *key, T value) {
-    //   keyFromFlash = true;
-    //   char *_key = new char[KEY_MAX_LENGTH];
-    //   strncpy_P(_key, (char *) key, KEY_MAX_LENGTH);
-    //   this->key = (const char *) _key;
-
-    //   this->value = value;
-    // }
-
     LinkedMapNode(const char *key, T value) {
       this->key = key;
       this->value = value;
     }
 
+    LinkedMapNode(const char *key, T value, bool ownsKey) {
+      this->key = key;
+      this->value = value;
+      this->ownsKey = ownsKey;
+    }
+
     ~LinkedMapNode() {
-      // Delete the key if it was copied into RAM from flash memory.
-      if (keyFromFlash) {
-        delete key;
+      if (ownsKey) {
+        delete[] key;
       }
     }
   };

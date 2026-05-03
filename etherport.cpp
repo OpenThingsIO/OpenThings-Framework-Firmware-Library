@@ -61,7 +61,7 @@ EthernetServer::EthernetServer(uint16_t port)
 
 EthernetServer::~EthernetServer()
 {
-	close(m_sock);
+	if (m_sock > 0) close(m_sock);
 }
 
 bool EthernetServer::begin()
@@ -141,6 +141,62 @@ EthernetClient::EthernetClient(int sock)
 EthernetClient::~EthernetClient()
 {
 	if (tmpbuf) free(tmpbuf);
+}
+
+EthernetClient::EthernetClient(const EthernetClient &other)
+		: tmpbuf(NULL), tmpbufsize(other.tmpbufsize), tmpbufidx(other.tmpbufidx),
+		  m_sock(other.m_sock), m_connected(other.m_connected)
+{
+	if (other.tmpbuf) {
+		tmpbuf = (uint8_t *)malloc(TMPBUF);
+		if (tmpbuf) memcpy(tmpbuf, other.tmpbuf, TMPBUF);
+	}
+}
+
+EthernetClient &EthernetClient::operator=(const EthernetClient &other)
+{
+	if (this != &other) {
+		if (tmpbuf) free(tmpbuf);
+		tmpbuf = NULL;
+		tmpbufsize = other.tmpbufsize;
+		tmpbufidx = other.tmpbufidx;
+		m_sock = other.m_sock;
+		m_connected = other.m_connected;
+		if (other.tmpbuf) {
+			tmpbuf = (uint8_t *)malloc(TMPBUF);
+			if (tmpbuf) memcpy(tmpbuf, other.tmpbuf, TMPBUF);
+		}
+	}
+	return *this;
+}
+
+EthernetClient::EthernetClient(EthernetClient &&other) noexcept
+		: tmpbuf(other.tmpbuf), tmpbufsize(other.tmpbufsize), tmpbufidx(other.tmpbufidx),
+		  m_sock(other.m_sock), m_connected(other.m_connected)
+{
+	other.tmpbuf = NULL;
+	other.tmpbufsize = 0;
+	other.tmpbufidx = 0;
+	other.m_sock = 0;
+	other.m_connected = false;
+}
+
+EthernetClient &EthernetClient::operator=(EthernetClient &&other) noexcept
+{
+	if (this != &other) {
+		if (tmpbuf) free(tmpbuf);
+		tmpbuf = other.tmpbuf;
+		tmpbufsize = other.tmpbufsize;
+		tmpbufidx = other.tmpbufidx;
+		m_sock = other.m_sock;
+		m_connected = other.m_connected;
+		other.tmpbuf = NULL;
+		other.tmpbufsize = 0;
+		other.tmpbufidx = 0;
+		other.m_sock = 0;
+		other.m_connected = false;
+	}
+	return *this;
 }
 
 int EthernetClient::connect(const char* server, uint16_t port)
@@ -279,6 +335,7 @@ void EthernetClient::flush() {
 }
 
 void EthernetClient::setTimeout(int msec) {
+	if (!m_sock) return;
 	struct timeval timeout;
 	timeout.tv_sec =  (msec / 1000);
 	timeout.tv_usec = (msec % 1000) * 1000;
