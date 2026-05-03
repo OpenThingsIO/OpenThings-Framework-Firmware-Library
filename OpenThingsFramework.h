@@ -61,7 +61,7 @@ namespace OTF {
     LinkedMap<callback_t> callbacks;
     callback_t missingPageCallback;
     CLOUD_STATUS cloudStatus = NOT_ENABLED;
-    unsigned long lastCloudStatusChangeTime = millis();
+    uint32_t lastCloudStatusChangeTime = millis();
     char *headerBuffer = NULL;
     int headerBufferSize = 0;
 
@@ -127,7 +127,7 @@ namespace OTF {
     CLOUD_STATUS getCloudStatus();
 
     /** Returns the number of milliseconds since there was last a change in the cloud status. */
-    unsigned long getTimeSinceLastCloudStatusChange();
+    uint32_t getTimeSinceLastCloudStatusChange();
   };
 }// namespace OTF
 

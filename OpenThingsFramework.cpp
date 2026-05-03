@@ -82,7 +82,7 @@ void OpenThingsFramework::onMissingPage(callback_t callback) {
 
 void OpenThingsFramework::localServerLoop() {
 
-  static unsigned long wait_to = 0; // timeout to wait for client data
+  static uint32_t wait_to = 0; // timeout to wait for client data
   if (!wait_to) {
     localClient = localServer.acceptClient();
     // If a client wasn't available from the server, exit the local server loop.
@@ -108,11 +108,7 @@ void OpenThingsFramework::localServerLoop() {
 
 
   // Update the timeout for each data read to ensure that the total timeout is WIFI_CONNECTION_TIMEOUT.
-  #if defined(ARDUINO)
-  unsigned int timeout = millis()+WIFI_CONNECTION_TIMEOUT;
-  #else
-  unsigned long timeout = millis()+WIFI_CONNECTION_TIMEOUT;
-  #endif
+  uint32_t timeout = millis()+WIFI_CONNECTION_TIMEOUT;
 
 
   char *buffer = headerBuffer;
@@ -380,6 +376,6 @@ CLOUD_STATUS OpenThingsFramework::getCloudStatus() {
   return cloudStatus;
 }
 
-unsigned long OpenThingsFramework::getTimeSinceLastCloudStatusChange() {
+uint32_t OpenThingsFramework::getTimeSinceLastCloudStatusChange() {
   return millis() - lastCloudStatusChangeTime;
 }

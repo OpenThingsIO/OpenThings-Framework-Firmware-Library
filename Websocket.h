@@ -119,7 +119,7 @@ public:
    * @param timeout Time in milliseconds to wait for a response to the heartbeat
    * @param maxMissed Maximum number of missed heartbeats before closing the connection
    */
-  void enableHeartbeat(unsigned long interval, unsigned long timeout, uint8_t maxMissed);
+  void enableHeartbeat(uint32_t interval, uint32_t timeout, uint8_t maxMissed);
 
   /**
    * @brief Disable the heartbeat
@@ -132,7 +132,7 @@ public:
    * 
    * @param interval Time in milliseconds between reconnection attempts
    */
-  void setReconnectInterval(unsigned long interval);
+  void setReconnectInterval(uint32_t interval);
 
   /**
    * @brief Poll the websocket connection
@@ -183,7 +183,7 @@ public:
 
 private:
   bool enableReconnect = false;
-  unsigned long reconnectInterval = 0;
+  uint32_t reconnectInterval = 0;
 
   WSInterfaceString host;
   int port;
@@ -203,7 +203,7 @@ private:
 };
 
 #else
-unsigned long millis();
+uint32_t millis();
 
 class WebsocketClient : protected websockets::WebsocketsClient {
 public:
@@ -299,7 +299,7 @@ public:
    * @param timeout Time in milliseconds to wait for a response to the heartbeat
    * @param maxMissed Maximum number of missed heartbeats before closing the connection
    */
-  void enableHeartbeat(unsigned long interval, unsigned long timeout, uint8_t maxMissed);
+  void enableHeartbeat(uint32_t interval, uint32_t timeout, uint8_t maxMissed);
 
   /**
    * @brief Disable the heartbeat
@@ -312,7 +312,7 @@ public:
    * 
    * @param interval Time in milliseconds between reconnection attempts
    */
-  void setReconnectInterval(unsigned long interval);
+  void setReconnectInterval(uint32_t interval);
 
   /**
    * @brief Poll the websocket connection
@@ -362,16 +362,16 @@ public:
   bool end();
 
 private:
-  unsigned int heartbeatInterval = 0;
-  unsigned int heartbeatTimeout = 0;
-  unsigned long heartbeatLastSent = 0;
+  uint32_t heartbeatInterval = 0;
+  uint32_t heartbeatTimeout = 0;
+  uint32_t heartbeatLastSent = 0;
   unsigned int heartbeatMissed = 0;
   unsigned int heartbeatMaxMissed = 0;
   bool heartbeatInProgress = false;
   bool heartbeatEnabled = false;
 
-  unsigned int reconnectInterval = 500;
-  unsigned long reconnectLastAttempt = 0;
+  uint32_t reconnectInterval = 500;
+  uint32_t reconnectLastAttempt = 0;
   bool shouldReconnect = false;
 
   WSInterfaceString host;

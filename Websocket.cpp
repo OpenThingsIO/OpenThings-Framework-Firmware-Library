@@ -1,7 +1,7 @@
 #include "Websocket.h"
 
 #if defined(ARDUINO)
-void WebsocketClient::enableHeartbeat(unsigned long interval, unsigned long timeout, uint8_t maxMissed) {
+void WebsocketClient::enableHeartbeat(uint32_t interval, uint32_t timeout, uint8_t maxMissed) {
   WebSocketsClient::enableHeartbeat(interval, timeout, maxMissed);
 }
 
@@ -9,7 +9,7 @@ void WebsocketClient::disableHeartbeat() {
   WebSocketsClient::disableHeartbeat();
 }
 
-void WebsocketClient::setReconnectInterval(unsigned long interval) {
+void WebsocketClient::setReconnectInterval(uint32_t interval) {
   WebSocketsClient::setReconnectInterval(interval);
 }
 
@@ -82,7 +82,7 @@ bool WebsocketClient::end() {
 
 #else
 
-void WebsocketClient::enableHeartbeat(unsigned long interval, unsigned long timeout, uint8_t maxMissed) {
+void WebsocketClient::enableHeartbeat(uint32_t interval, uint32_t timeout, uint8_t maxMissed) {
     heartbeatEnabled = true;
     heartbeatInterval = interval;
     heartbeatTimeout = timeout;
@@ -93,24 +93,21 @@ void WebsocketClient::disableHeartbeat() {
     heartbeatEnabled = false;
 }
 
-void WebsocketClient::setReconnectInterval(unsigned long interval) {
+void WebsocketClient::setReconnectInterval(uint32_t interval) {
     reconnectInterval = interval;
 }
 
 // Arduino-compatible millis() for non-Arduino targets: ms since first call,
-// narrowed through uint32_t so the value matches Arduino's 32-bit wrap
-// semantics (every ~49 days). OTF carries its own epoch state so the library
-// stays standalone.
-// NOTE: returns unsigned long to match the existing API on the upstream
-// branch; once the upstream signature is bumped to uint32_t this should be
-// updated alongside utils.h to match.
-unsigned long millis() {
+// returned as uint32_t so it matches Arduino's 32-bit wrap semantics
+// (every ~49 days). OTF carries its own epoch state so the library stays
+// standalone.
+uint32_t millis() {
 	static uint64_t epoch_ms = 0;
 	struct timeval tv;
 	gettimeofday(&tv, NULL);
 	uint64_t now = (uint64_t)tv.tv_sec * (uint64_t)1000 + (uint64_t)(tv.tv_usec / 1000);
 	if (epoch_ms == 0) epoch_ms = now;
-	return (unsigned long)(uint32_t)(now - epoch_ms);
+	return (uint32_t)(now - epoch_ms);
 }
 
 
