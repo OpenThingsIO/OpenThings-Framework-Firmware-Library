@@ -1,4 +1,4 @@
-/* OpenSprinkler Unified (AVR/RPI/BBB/LINUX) Firmware
+/* OpenSprinkler Unified (ESP8266/RPI/BBB/LINUX) Firmware
  * Copyright (C) 2015 by Ray Wang (ray@opensprinkler.com)
  *
  * Linux Ethernet functions header file

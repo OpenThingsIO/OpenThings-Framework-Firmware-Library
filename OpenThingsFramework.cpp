@@ -43,19 +43,14 @@ OpenThingsFramework::OpenThingsFramework(uint16_t webServerPort, const char* web
 
   if (useSsl) {
     OTF_DEBUG(F("Connecting to websocket with SSL\n"));
-    // #if defined(ARDUINO)
     // webSocket->connectSecure(webSocketHost, webSocketPort, "/socket/v1?deviceKey=" + deviceKey);
-    // #else
-    // std::string path = std::string("/socket/v1?deviceKey=") + deviceKey;
-    // webSocket->connectSecure(std::string(webSocketHost), webSocketPort, path);
-    // #endif
   } else {
     OTF_DEBUG(F("Connecting to websocket without SSL\n"));
     #if defined(ARDUINO)
     webSocket->connect(webSocketHost, webSocketPort, "/socket/v1?deviceKey=" + deviceKey);
     #else
     std::string path = std::string("/socket/v1?deviceKey=") + deviceKey;
-    webSocket->connect(std::string(webSocketHost), webSocketPort, path);
+    webSocket->connect(webSocketHost, webSocketPort, path.c_str());
     #endif
   }
   OTF_DEBUG(F("Initialized websocket\n"));
@@ -122,29 +117,49 @@ void OpenThingsFramework::localServerLoop() {
 
   char *buffer = headerBuffer;
   size_t length = 0;
-  while (localClient->dataAvailable()&&millis()<timeout) {
-    if (length >= headerBufferSize) {
-      localClient->print(F("HTTP/1.1 413 Request too large\r\n\r\nThe request was too large"));
-      // Get a new client to indicate that the previous client is no longer needed.
-      localClient = localServer.acceptClient();
-      return;
+  bool isFirstLine = true;
+
+  while (localClient->dataAvailable() && millis() < timeout) {
+    if (isFirstLine) {
+      // Read the first line (Request Line) directly into the main buffer.
+      // This supports very long query strings (up to headerBufferSize).
+      size_t read = localClient->readBytesUntil('\n', &buffer[length], headerBufferSize - 10);
+      length += read;
+      buffer[length++] = '\n';
+      isFirstLine = false;
+      continue;
     }
 
-    size_t read = localClient->readBytesUntil('\n', &buffer[length], min((int) (headerBufferSize - length - 1), headerBufferSize));
-    char rc = buffer[length];
-    length += read;
-    buffer[length++] = '\n';
-    if(read==1 && rc=='\r') { break; }
+    char line[128];
+    size_t lineLen = localClient->readBytesUntil('\n', line, sizeof(line) - 1);
+    if (lineLen == 0) break; // timeout or end of data
+
+    // Check for empty line (end of headers)
+    if (lineLen == 1 && line[0] == '\r') break;
+
+    // Selective headers to keep
+    if (strncasecmp(line, "content-length:", 15) == 0) {
+      if (length + lineLen + 1 < headerBufferSize - 4) {
+        memcpy(&buffer[length], line, lineLen);
+        length += lineLen;
+        buffer[length++] = '\n';
+      }
+    }
   }
-  OTF_DEBUG((char *) F("Finished reading data from client. Request line + headers were %d bytes\n"), length);
+
+  // Standardize end of headers with \r\n\r\n for the Request parser
+  // (Ensuring we have at least one \r\n before the final one)
+  if (length > 0 && buffer[length-1] == '\n') {
+    if (length > 1 && buffer[length-2] != '\r') {
+      buffer[length-1] = '\r';
+      buffer[length++] = '\n';
+    }
+  }
+  buffer[length++] = '\r';
+  buffer[length++] = '\n';
   buffer[length] = 0;
 
-  // Make sure that the headers were fully read into the buffer.
-  if (strncmp_P(&buffer[length - 4], (char *) F("\r\n\r\n"), 4) != 0) {
-    OTF_DEBUG(F("The request headers were not fully read into the buffer.\n"));
-    localClient->print(F("HTTP/1.1 413 Request too large\r\n\r\nThe request was too large"));
-    return;
-  }
+  OTF_DEBUG((char *) F("Finished reading selective data from client. Stored headers size: %d bytes\n"), length);
 
   OTF_DEBUG(F("Parsing request"));
   Request request(buffer, length, false);
@@ -167,7 +182,14 @@ void OpenThingsFramework::localServerLoop() {
         size_t bodyLength = 0;
         timeout = millis()+WIFI_CONNECTION_TIMEOUT;
         while (localClient->dataAvailable() && millis()<timeout) {
-          size_t read = localClient->readBytes(&bodyBuffer[bodyLength], min((int) (contentLength - bodyLength), 1024));
+          size_t size =
+          #if defined(ARDUINO)
+          min
+          #else
+          std::min
+          #endif
+          ((int) (contentLength - bodyLength), 1024);
+          size_t read = localClient->readBytes(&bodyBuffer[bodyLength], size);
           bodyLength += read;
         }
         bodyBuffer[bodyLength] = 0;
@@ -227,7 +249,6 @@ void OpenThingsFramework::webSocketEventCallback(WSEvent_t type, uint8_t *payloa
       if (cloudStatus == CONNECTED) {
         // Make sure the cloud status is only set to disconnected if it was previously connected.
         setCloudStatus(DISCONNECTED);
-        this->webSocket->resetStreaming();
       }
       break;
     }
@@ -235,7 +256,6 @@ void OpenThingsFramework::webSocketEventCallback(WSEvent_t type, uint8_t *payloa
     case WSEvent_CONNECTED: {
       OTF_DEBUG(F("Websocket connection opened\n"));
       setCloudStatus(CONNECTED);
-      this->webSocket->resetStreaming();
       break;
     }
 
@@ -326,7 +346,6 @@ void OpenThingsFramework::fillResponse(const Request &req, Response &res) {
   StringBuilder *sb = new StringBuilder(KEY_MAX_LENGTH);
   char *key = makeMapKey(sb, req.httpMethod, req.getPath());
   callback_t callback = callbacks.find(key);
-
   // If there isn't a callback for the specific method, check if there's one for any method.
   if (callback == nullptr) {
     delete sb;
@@ -336,7 +355,7 @@ void OpenThingsFramework::fillResponse(const Request &req, Response &res) {
   }
 
   delete sb;
-
+  OTF_DEBUG((char *) F("callback=%x\n"), callback);
   if (callback != nullptr) {
     OTF_DEBUG(F("Found callback\n"));
     callback(req, res);

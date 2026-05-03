@@ -8,8 +8,9 @@ typedef String WSInterfaceString;
 #else
 #include <tiny_websockets/client.hpp>
 #include <sys/time.h>
+#include <stdint.h>
 #include <functional>
-typedef std::string WSInterfaceString;
+typedef const char* WSInterfaceString;
 #endif
 
 #ifdef SERIAL_DEBUG
@@ -19,8 +20,8 @@ typedef std::string WSInterfaceString;
   Serial.printf(__VA_ARGS__)
 #else
 #define WS_DEBUG(...)          \
-  fprintf(stdout, "Websocket: "); \
-  fprintf(stdout, __VA_ARGS__)
+  printf("Websocket: "); \
+  printf(__VA_ARGS__)
 #endif
 #else
 #define WS_DEBUG(...)
@@ -145,12 +146,6 @@ public:
    * @param callback Function to run when an event occurs
    */
   void onEvent(WebSocketEventCallback callback);
-
-  /**
-   * @brief Sets is streaming to false, used for reconnecting
-   * 
-   */
-  void resetStreaming();
 
   /**
    * @brief Enable streaming mode
@@ -331,12 +326,6 @@ public:
    * @param callback Function to run when an event occurs
    */
   void onEvent(WebSocketEventCallback callback);
-
-  /**
-   * @brief Sets is streaming to false, used for reconnecting
-   * 
-   */
-  void resetStreaming();
 
   /**
    * @brief Enable streaming mode

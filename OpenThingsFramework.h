@@ -27,8 +27,8 @@
   Serial.printf(__VA_ARGS__)
 #else
 #define OTF_DEBUG(...)          \
-  fprintf(stdout, "OTF: "); \
-  fprintf(stdout, __VA_ARGS__)
+  printf("OTF: "); \
+  printf(__VA_ARGS__)
 #endif
 #else
 #define OTF_DEBUG(...)
@@ -37,7 +37,7 @@
 #include "Websocket.h"
 
 // The size of the buffer to store the incoming request line and headers (does not include body). Larger requests will be discarded.
-#define HEADERS_BUFFER_SIZE 1536
+#define HEADERS_BUFFER_SIZE 1024
 
 namespace OTF {
   typedef void (*callback_t)(const Request &request, Response &response);

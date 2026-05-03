@@ -1,4 +1,4 @@
-/* OpenSprinkler Unified (AVR/RPI/BBB/LINUX) Firmware
+/* OpenSprinkler Unified (ESP8266/RPI/BBB/LINUX) Firmware
  * Copyright (C) 2015 by Ray Wang (ray@opensprinkler.com)
  *
  * Linux Ethernet functions
@@ -28,9 +28,9 @@
 
 #if defined(DEBUG)
 #defined DEBUG_ETHERPORT printf
-inline  void DEBUG_PRINT(int x) {fprintf(stdout, "%d", x);}
-inline  void DEBUG_PRINT(const char*s) {fprintf(stdout, "%s", s);}
-#define DEBUG_ETHERPORT(x)        {DEBUG_PRINT(x);fprintf(stdout, "\n");}
+inline  void DEBUG_PRINT(int x) {printf("%d", x);}
+inline  void DEBUG_PRINT(const char*s) {printf("%s", s);}
+#define DEBUG_ETHERPORT(x)        {DEBUG_PRINT(x);printf("\n");}
 #else
 #define DEBUG_ETHERPORT(x)
 #endif
@@ -228,14 +228,11 @@ int EthernetClient::read(uint8_t *buf, size_t size)
 	if (rc > 0)
 	{
 		rc = recv(m_sock, buf, size, 0);
-		if (rc < 0 && errno == EWOULDBLOCK) {
+		if (rc < 0 && errno == EWOULDBLOCK)
 			return 0;
-        }
 
-		if (rc <= 0) { // socket closed
+		if (rc <= 0) // socket closed
 			m_connected = false;
-        }
-        
 		return rc;
 	}
 	if (rc < 0)

@@ -21,8 +21,8 @@
   Serial.printf(__VA_ARGS__)
 #else
 #define REQ_DEBUG(...)          \
-  fprintf(stdout, "Request: "); \
-  fprintf(stdout, __VA_ARGS__)
+  printf("Request: "); \
+  printf(__VA_ARGS__)
 #endif
 #else
 #define REQ_DEBUG(...)

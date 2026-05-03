@@ -31,19 +31,15 @@ void WebsocketClient::connectSecure(WSInterfaceString host, int port, WSInterfac
   WebSocketsClient::beginSSL(host.c_str(), port, path.c_str());
 }
 
-void WebsocketClient::resetStreaming() {
-    isStreaming = false;
-}
-
 bool WebsocketClient::stream() {
+  if (isStreaming) {
+    WS_DEBUG("Already streaming\n");
+    return false;
+  }
+
   if (clientIsConnected(&_client)) {
-    if (isStreaming) {
-      WS_DEBUG("Already streaming\n");
-      return false;
-    }
     isStreaming = sendFrame(&_client, WSop_text, (uint8_t *) "", 0, false, false);
   } else {
-    WS_DEBUG("Client is not connected\n");
     isStreaming = false;
   }
 
@@ -87,27 +83,36 @@ bool WebsocketClient::end() {
 #else
 
 void WebsocketClient::enableHeartbeat(unsigned long interval, unsigned long timeout, uint8_t maxMissed) {
-  heartbeatEnabled = true;
-  heartbeatInterval = interval;
-  heartbeatTimeout = timeout;
-  heartbeatMaxMissed = maxMissed;
+    heartbeatEnabled = true;
+    heartbeatInterval = interval;
+    heartbeatTimeout = timeout;
+    heartbeatMaxMissed = maxMissed;
 }
 
 void WebsocketClient::disableHeartbeat() {
-  heartbeatEnabled = false;
+    heartbeatEnabled = false;
 }
 
 void WebsocketClient::setReconnectInterval(unsigned long interval) {
-  reconnectInterval = interval;
+    reconnectInterval = interval;
 }
 
+// Arduino-compatible millis() for non-Arduino targets: ms since first call,
+// narrowed through uint32_t so the value matches Arduino's 32-bit wrap
+// semantics (every ~49 days). OTF carries its own epoch state so the library
+// stays standalone.
+// NOTE: returns unsigned long to match the existing API on the upstream
+// branch; once the upstream signature is bumped to uint32_t this should be
+// updated alongside utils.h to match.
 unsigned long millis() {
-  struct timeval tv;
-  uint64_t now;
-
-  gettimeofday(&tv, NULL);
-  return now = (uint64_t) tv.tv_sec * (uint64_t) 1000 + (uint64_t) (tv.tv_usec / 1000);
+	static uint64_t epoch_ms = 0;
+	struct timeval tv;
+	gettimeofday(&tv, NULL);
+	uint64_t now = (uint64_t)tv.tv_sec * (uint64_t)1000 + (uint64_t)(tv.tv_usec / 1000);
+	if (epoch_ms == 0) epoch_ms = now;
+	return (unsigned long)(uint32_t)(now - epoch_ms);
 }
+
 
 void WebsocketClient::poll() {
   websockets::WebsocketsClient::poll();
@@ -141,7 +146,7 @@ void WebsocketClient::poll() {
     if (millis() - reconnectLastAttempt > reconnectInterval) {
       WS_DEBUG("Reconnecting...\n");
       // Attempt to reconnect
-      websockets::WebsocketsClient::connect(host, port, path);
+        websockets::WebsocketsClient::connect(host, port, path);
 
       WS_DEBUG("Reconnect attempt complete\n");
       WS_DEBUG("Connection status: %d\n", websockets::WebsocketsClient::available());
@@ -163,8 +168,8 @@ void WebsocketClient::connect(WSInterfaceString host, int port, WSInterfaceStrin
   shouldReconnect = true;
   heartbeatMissed = 0;
   heartbeatInProgress = false;
-  //   isSecure = false;
-  websockets::WebsocketsClient::connect(this->host.c_str(), this->port, this->path.c_str());
+//   isSecure = false;
+  websockets::WebsocketsClient::connect(host, port, path);
 }
 
 // void WebsocketClient::connectSecure(WSInterfaceString host, int port, WSInterfaceString path) {
@@ -176,28 +181,24 @@ void WebsocketClient::connect(WSInterfaceString host, int port, WSInterfaceStrin
 //   heartbeatMissed = 0;
 //   heartbeatInProgress = false;
 //   isSecure = true;
-//   websockets::WebsocketsClient::connect(this->host.c_str(), this->port, this->path.c_str());
+//   websockets::WebsocketsClient::connect(host, port, path);
 // }
-
-void WebsocketClient::resetStreaming() {
-    isStreaming = false;
-}
 
 bool WebsocketClient::stream() {
   return websockets::WebsocketsClient::stream();
 }
 
 bool WebsocketClient::send(uint8_t *payload, size_t length, bool headerToPayload) {
-  return send((const char *) payload, length, headerToPayload);
+    return send((const char*) payload, length, headerToPayload);
 }
 
 bool WebsocketClient::send(const char *payload, size_t length, bool headerToPayload) {
-  WS_DEBUG("Sending message of length %d\n", length);
-  if (length == 0) {
-    length = strlen(payload);
-  }
+    WS_DEBUG("Sending message of length %d\n", length);
+    if (length == 0) {
+        length = strlen(payload);
+    }
 
-  return websockets::WebsocketsClient::send((const char *) payload, length);
+  return websockets::WebsocketsClient::send((const char*) payload, length);
 }
 
 bool WebsocketClient::end() {
