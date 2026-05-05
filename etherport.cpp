@@ -212,7 +212,7 @@ int EthernetClient::connect(const char* server, uint16_t port)
 	struct sockaddr_in sin = {0};
 	sin.sin_family = AF_INET;
 	sin.sin_port = htons(port);
-	sin.sin_addr.s_addr = *(uint32_t*) (host->h_addr);
+	memcpy(&sin.sin_addr.s_addr, host->h_addr, sizeof(sin.sin_addr.s_addr));
 	m_sock = socket(AF_INET, SOCK_STREAM, 0);
 	if (m_sock < 0) {
 		DEBUG_ETHERPORT("Error: creating socket");
@@ -431,7 +431,7 @@ int EthernetClientSsl::connect(const char* server, uint16_t port)
 	struct sockaddr_in sin = {0};
 	sin.sin_family = AF_INET;
 	sin.sin_port = htons(port);
-	sin.sin_addr.s_addr = *(long*) (host->h_addr);
+	memcpy(&sin.sin_addr.s_addr, host->h_addr, sizeof(sin.sin_addr.s_addr));
 	m_sock = socket(AF_INET, SOCK_STREAM, 0);
 	if (m_sock < 0) {
 		DEBUG_ETHERPORT("Error: creating socket");

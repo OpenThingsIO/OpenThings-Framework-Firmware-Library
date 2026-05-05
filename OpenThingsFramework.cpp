@@ -1,6 +1,7 @@
 #include "OpenThingsFramework.h"
 #include "StringBuilder.hpp"
 #include <string>
+#include <stdlib.h>
 
 // The timeout for reading and parsing incoming requests.
 #define WIFI_CONNECTION_TIMEOUT 1500
@@ -188,14 +189,18 @@ void OpenThingsFramework::localServerLoop() {
     char *contentLengthString = request.getHeader(F("content-length"));
     // If the header was not specified, the message has no body.
     if (contentLengthString != nullptr) {
-        #if defined(ARDUINO)
-      long contentLength = String(contentLengthString).toInt();
+      int32_t contentLength = 0;
+      #if defined(ARDUINO)
+      contentLength = (int32_t)String(contentLengthString).toInt();
       #else
-      long contentLength = atol(contentLengthString);
+      int64_t parsedContentLength = strtoll(contentLengthString, nullptr, 10);
+      if (parsedContentLength > INT32_MAX) parsedContentLength = INT32_MAX;
+      if (parsedContentLength < INT32_MIN) parsedContentLength = INT32_MIN;
+      contentLength = (int32_t)parsedContentLength;
       #endif
       // If the header specifies a length of 0 or could not be parsed, the message has no body.
       if (contentLength > OTF_MAX_BODY_SIZE) {
-        OTF_DEBUG((char *) F("Content-Length %ld exceeds OTF_MAX_BODY_SIZE\n"), contentLength);
+        OTF_DEBUG((char *) F("Content-Length %d exceeds OTF_MAX_BODY_SIZE\n"), (int)contentLength);
         localClient->print(F("HTTP/1.1 413 Payload Too Large\r\n\r\nThe request body exceeds the configured limit"));
         localClient->flush();
         localClient->stop();
