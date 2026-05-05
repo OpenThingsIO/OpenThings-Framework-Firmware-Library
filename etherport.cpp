@@ -27,7 +27,6 @@
 #else
 
 #if defined(DEBUG)
-#defined DEBUG_ETHERPORT printf
 inline  void DEBUG_PRINT(int x) {printf("%d", x);}
 inline  void DEBUG_PRINT(const char*s) {printf("%s", s);}
 #define DEBUG_ETHERPORT(x)        {DEBUG_PRINT(x);printf("\n");}
@@ -318,16 +317,15 @@ int EthernetClient::timedRead() {
 }
 
 size_t EthernetClient::readBytesUntil(char terminator, char *buffer, size_t length) {
-	size_t n = 0;
-	int c = timedRead();
-  	while (c >= 0 && c != terminator && length>0)
-  	{
-		buffer[n] = (char)c;
-		length--;
-		n++;
-		c = timedRead();
-	}
-	return n;
+    size_t n = 0;
+    while (length > 0)
+    {
+        int c = timedRead();
+        if (c < 0 || c == terminator) break;
+        buffer[n++] = (char)c;
+        length--;
+    }
+    return n;
 }
 
 void EthernetClient::flush() {
