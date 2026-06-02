@@ -365,6 +365,11 @@ void OpenThingsFramework::webSocketEventCallback(WSEvent_t type, uint8_t *payloa
 
           // Send the buffer to the websocket stream.
           webSocket->send(buffer, length);
+#if defined(ARDUINO)
+          // Add a delay to allow the network stack to transmit the packet
+          // and prevent TCP buffer congestion or "Connection reset by peer".
+          delay(40);
+#endif
         }, [this] () -> void {
           // Flush the websocket stream.
           //webSocket->flush();
