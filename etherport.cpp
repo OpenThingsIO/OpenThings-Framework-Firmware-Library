@@ -371,12 +371,12 @@ size_t EthernetClient::write(const uint8_t *buf, size_t size)
 static SSL_CTX* ctx = NULL;
 
 EthernetClientSsl::EthernetClientSsl()
-		: EthernetClient()
+		: EthernetClient(), ssl(NULL)
 {
 }
 
 EthernetClientSsl::EthernetClientSsl(int sock)
-		: EthernetClient(sock)
+		: EthernetClient(sock), ssl(NULL)
 {
 }
 
