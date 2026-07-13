@@ -9,9 +9,6 @@
     "build": {
         "srcFilter": [
             "+<*>",
-            "-<LinuxLocalServer.cpp>",
-            "-<LinuxLocalServer.h>",
-            "-<etherport.cpp>",
             "-<etherport.h>"
         ],
         "flags": [

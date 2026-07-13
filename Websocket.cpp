@@ -189,6 +189,8 @@ bool WebsocketClient::end() {
 
 #else
 
+#if WEBSOCKET_ENABLED
+
 void WebsocketClient::enableHeartbeat(unsigned long interval, unsigned long timeout, uint8_t maxMissed) {
   heartbeatEnabled = true;
   heartbeatInterval = interval;
@@ -306,5 +308,7 @@ bool WebsocketClient::send(const char *payload, size_t length, bool headerToPayl
 bool WebsocketClient::end() {
   return websockets::WebsocketsClient::end();
 }
+
+#endif // WEBSOCKET_ENABLED
 
 #endif

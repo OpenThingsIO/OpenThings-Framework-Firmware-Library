@@ -12,6 +12,8 @@ typedef String WSInterfaceString;
 // Linux/non-Arduino environment
 // WebSocket support requires tiny_websockets library
 // If not available, WebSocket functionality will be disabled
+#include <cstddef>
+#include <cstdint>
 #include <sys/time.h>
 #include <functional>
 #include <string>
