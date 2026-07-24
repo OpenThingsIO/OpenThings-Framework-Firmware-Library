@@ -103,14 +103,14 @@ void OpenThingsFramework::onMissingPage(callback_t callback) {
   missingPageCallback = callback;
 }
 
-void OpenThingsFramework::localServerLoop() {
+bool OpenThingsFramework::localServerLoop() {
 
   static uint32_t wait_to = 0; // timeout to wait for client data
   if (!wait_to) {
     localClient = localServer.acceptClient();
     // If a client wasn't available from the server, exit the local server loop.
     if (!localClient) {
-      return;
+      return false;
     }
     // set a timeout to wait for client data
     wait_to = millis()+WIFI_CONNECTION_TIMEOUT;
@@ -118,27 +118,27 @@ void OpenThingsFramework::localServerLoop() {
   if (!localClient->dataAvailable()) {
     // If data isn't available from the client yet, exit the local server loop and check again next iteration.
     // but if we reached timeout, then reset wait_to to 0 and flush localClient so we can accept new client
-    if(millis()>wait_to) {
+    if((int32_t)(millis()-wait_to) >= 0) {
       wait_to=0;
       OTF_DEBUG(F("client wait timeout\n"));
       localClient->flush();
       localClient->stop();
     }
-    return;
+    return true;
   }
   // got new client data, reset wait_to to 0
   wait_to = 0;
 
 
   // Update the timeout for each data read to ensure that the total timeout is WIFI_CONNECTION_TIMEOUT.
-  uint32_t timeout = millis()+WIFI_CONNECTION_TIMEOUT;
+  uint32_t timeoutStart = millis();
 
 
   char *buffer = headerBuffer;
   size_t length = 0;
   bool isFirstLine = true;
 
-  while (localClient->dataAvailable() && millis() < timeout) {
+  while (localClient->dataAvailable() && millis()-timeoutStart < WIFI_CONNECTION_TIMEOUT) {
     if (isFirstLine) {
       // Read the first line (Request Line) directly into the main buffer.
       // This supports very long query strings (up to headerBufferSize).
@@ -205,14 +205,15 @@ void OpenThingsFramework::localServerLoop() {
         localClient->flush();
         localClient->stop();
         localClient = localServer.acceptClient();
-        return;
+        return true;
       }
       if (contentLength > 0) {
         // Read the body from the client.
         bodyBuffer = new char[contentLength + 1];
         size_t bodyLength = 0;
-        timeout = millis()+WIFI_CONNECTION_TIMEOUT;
-        while (bodyLength < (size_t)contentLength && localClient->dataAvailable() && millis()<timeout) {
+        timeoutStart = millis();
+        while (bodyLength < (size_t)contentLength && localClient->dataAvailable() &&
+               millis()-timeoutStart < WIFI_CONNECTION_TIMEOUT) {
           size_t size =
           #if defined(ARDUINO)
           min
@@ -265,11 +266,12 @@ void OpenThingsFramework::localServerLoop() {
   }
 
   OTF_DEBUG(F("Finished handling request\n"));
+  return true;
 }
 
-void OpenThingsFramework::loop() {
-  localServerLoop();
-  if (webSocket != nullptr) {
+void OpenThingsFramework::loop(bool allowCloud) {
+  bool localClientActive = localServerLoop();
+  if (!localClientActive && allowCloud && webSocket != nullptr) {
     webSocket->poll();
   }
 }

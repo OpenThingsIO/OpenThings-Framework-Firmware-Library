@@ -10,7 +10,11 @@ void WebsocketClient::disableHeartbeat() {
 }
 
 void WebsocketClient::setReconnectInterval(uint32_t interval) {
-  WebSocketsClient::setReconnectInterval(interval);
+  reconnectInterval = interval;
+  reconnectDelay = interval;
+  reconnectLastAttempt = millis()-interval;
+  // Reconnection pacing is managed here so failed attempts can back off.
+  WebSocketsClient::setReconnectInterval(0);
 }
 
 void WebsocketClient::resetStreaming() {
@@ -18,7 +22,33 @@ void WebsocketClient::resetStreaming() {
 }
 
 void WebsocketClient::poll() {
+  if (_client.status == WSC_NOT_CONNECTED) {
+    uint32_t now = millis();
+    if (now-reconnectLastAttempt < reconnectDelay) {
+      return;
+    }
+
+    reconnectLastAttempt = now;
+    WebSocketsClient::loop();
+    if (_client.status == WSC_NOT_CONNECTED) {
+      if (reconnectDelay < 15000) {
+        reconnectDelay = 15000;
+      } else if (reconnectDelay < 60000) {
+        reconnectDelay = 60000;
+      } else if (reconnectDelay < 300000) {
+        reconnectDelay = 300000;
+      }
+    }
+    return;
+  }
+
   WebSocketsClient::loop();
+  if (_client.status == WSC_CONNECTED) {
+    reconnectDelay = reconnectInterval;
+  } else if (_client.status == WSC_NOT_CONNECTED) {
+    reconnectDelay = reconnectInterval;
+    reconnectLastAttempt = millis();
+  }
 }
 
 void WebsocketClient::onEvent(WebSocketEventCallback callback) {

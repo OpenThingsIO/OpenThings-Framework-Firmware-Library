@@ -69,7 +69,7 @@ namespace OTF {
     void webSocketEventCallback(WSEvent_t type, uint8_t *payload, size_t length);
 
     void fillResponse(const Request &req, Response &res);
-    void localServerLoop();
+    bool localServerLoop();
     void setCloudStatus(CLOUD_STATUS status);
 
     static void defaultMissingPageCallback(const Request &req, Response &res);
@@ -129,7 +129,14 @@ namespace OTF {
     /** Registers a callback function to run when a request is received but its path does not match a registered callback. */
     void onMissingPage(callback_t callback);
 
-    void loop();
+    /**
+     * Services local HTTP requests and, when allowed, the cloud websocket.
+     * Local requests take priority over cloud polling.
+     *
+     * @param allowCloud false to skip cloud connection attempts while the
+     * local network link is unavailable.
+     */
+    void loop(bool allowCloud = true);
 
     /** Returns the current status of the connection to the OpenThings Cloud server. */
     CLOUD_STATUS getCloudStatus();
