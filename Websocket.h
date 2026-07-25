@@ -192,6 +192,8 @@ public:
 private:
   bool enableReconnect = false;
   uint32_t reconnectInterval = 0;
+  uint32_t reconnectDelay = 0;
+  uint32_t reconnectLastAttempt = 0;
 
   WSInterfaceString host;
   int port;
