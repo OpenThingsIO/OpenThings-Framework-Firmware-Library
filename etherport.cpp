@@ -360,6 +360,21 @@ bool EthernetClient::available() {
 	return rc > 0;
 }
 
+size_t EthernetClient::availableBytes() {
+    if (tmpbufidx < tmpbufsize) {
+        return tmpbufsize - tmpbufidx;
+    }
+    if (!m_connected || !m_sock) {
+        return 0;
+    }
+
+    int count = 0;
+    if (ioctl(m_sock, FIONREAD, &count) < 0 || count <= 0) {
+        return 0;
+    }
+    return (size_t)count;
+}
+
 size_t EthernetClient::write(const uint8_t *buf, size_t size)
 {
 	return ::send(m_sock, buf, size, MSG_NOSIGNAL);

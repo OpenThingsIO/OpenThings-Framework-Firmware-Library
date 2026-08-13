@@ -73,6 +73,7 @@ public:
 	}
     virtual void flush();
 	virtual bool available();
+	virtual size_t availableBytes();
 	virtual void setTimeout(int msec);
 protected:
 	uint8_t *tmpbuf = NULL;

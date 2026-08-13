@@ -18,6 +18,12 @@ namespace OTF {
     virtual bool dataAvailable() = 0;
 
     /**
+     * Returns the number of bytes that can be read without waiting. Existing
+     * third-party clients remain source-compatible through this fallback.
+     */
+    virtual size_t availableBytes() { return dataAvailable() ? 1 : 0; }
+
+    /**
      * Reads up to `length` bytes from the request stream into `buffer`.
      * @return The number of bytes read.
      */

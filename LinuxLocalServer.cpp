@@ -42,6 +42,10 @@ bool LinuxLocalClient::dataAvailable() {
   return client.available();
 }
 
+size_t LinuxLocalClient::availableBytes() {
+  return client.availableBytes();
+}
+
 size_t LinuxLocalClient::readBytes(char *buffer, size_t length) {
   return client.read((uint8_t*) buffer, length);
 }
