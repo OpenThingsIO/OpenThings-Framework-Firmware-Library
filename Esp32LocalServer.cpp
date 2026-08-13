@@ -32,6 +32,11 @@ bool Esp32LocalClient::dataAvailable() {
   return client.available();
 }
 
+size_t Esp32LocalClient::availableBytes() {
+  int available = client.available();
+  return available > 0 ? (size_t)available : 0;
+}
+
 size_t Esp32LocalClient::readBytes(char *buffer, size_t length) {
   return client.readBytes(buffer, length);
 }

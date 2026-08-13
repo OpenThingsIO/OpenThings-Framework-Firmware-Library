@@ -1,7 +1,13 @@
 #include "OpenThingsFramework.h"
+#include "HttpParser.h"
 #include "StringBuilder.hpp"
 #include <string>
 #include <stdlib.h>
+#include <new>
+
+#if !defined(ARDUINO)
+#include <unistd.h>
+#endif
 
 // The timeout for reading and parsing incoming requests.
 #define WIFI_CONNECTION_TIMEOUT 1500
@@ -17,6 +23,14 @@
 #endif
 
 using namespace OTF;
+
+static void waitForRequestData() {
+#if defined(ARDUINO)
+  delay(1);
+#else
+  usleep(1000);
+#endif
+}
 
 OpenThingsFramework::OpenThingsFramework(uint16_t webServerPort, char *hdBuffer, int hdBufferSize) : localServer(webServerPort) {
   OTF_DEBUG("Instantiating OTF...\n");
@@ -106,6 +120,12 @@ void OpenThingsFramework::onMissingPage(callback_t callback) {
 bool OpenThingsFramework::localServerLoop() {
 
   static uint32_t wait_to = 0; // timeout to wait for client data
+  auto closeCurrentClient = [this]() {
+    localClient->flush();
+    localClient->stop();
+    localClient = localServer.acceptClient();
+    wait_to = localClient ? millis() + WIFI_CONNECTION_TIMEOUT : 0;
+  };
   if (!wait_to) {
     localClient = localServer.acceptClient();
     // If a client wasn't available from the server, exit the local server loop.
@@ -189,41 +209,67 @@ bool OpenThingsFramework::localServerLoop() {
     char *contentLengthString = request.getHeader(F("content-length"));
     // If the header was not specified, the message has no body.
     if (contentLengthString != nullptr) {
-      int32_t contentLength = 0;
-      #if defined(ARDUINO)
-      contentLength = (int32_t)String(contentLengthString).toInt();
-      #else
-      int64_t parsedContentLength = strtoll(contentLengthString, nullptr, 10);
-      if (parsedContentLength > INT32_MAX) parsedContentLength = INT32_MAX;
-      if (parsedContentLength < INT32_MIN) parsedContentLength = INT32_MIN;
-      contentLength = (int32_t)parsedContentLength;
-      #endif
-      // If the header specifies a length of 0 or could not be parsed, the message has no body.
-      if (contentLength > OTF_MAX_BODY_SIZE) {
-        OTF_DEBUG((char *) F("Content-Length %d exceeds OTF_MAX_BODY_SIZE\n"), (int)contentLength);
-        localClient->print(F("HTTP/1.1 413 Payload Too Large\r\n\r\nThe request body exceeds the configured limit"));
-        localClient->flush();
-        localClient->stop();
-        localClient = localServer.acceptClient();
+      size_t contentLength = 0;
+      ContentLengthResult lengthResult =
+        parseContentLength(contentLengthString, OTF_MAX_BODY_SIZE, contentLength);
+      if (lengthResult == CONTENT_LENGTH_INVALID) {
+        OTF_DEBUG(F("Invalid Content-Length\n"));
+        localClient->print(F("HTTP/1.1 400 Bad Request\r\nConnection: close\r\n\r\nInvalid Content-Length"));
+        closeCurrentClient();
+        return true;
+      }
+      if (lengthResult == CONTENT_LENGTH_TOO_LARGE) {
+        OTF_DEBUG(F("Content-Length exceeds OTF_MAX_BODY_SIZE\n"));
+        localClient->print(F("HTTP/1.1 413 Payload Too Large\r\nConnection: close\r\n\r\nThe request body exceeds the configured limit"));
+        closeCurrentClient();
         return true;
       }
       if (contentLength > 0) {
         // Read the body from the client.
-        bodyBuffer = new char[contentLength + 1];
+        bodyBuffer = new (std::nothrow) char[contentLength + 1];
+        if (bodyBuffer == nullptr) {
+          OTF_DEBUG(F("Could not allocate request body buffer\n"));
+          localClient->print(F("HTTP/1.1 503 Service Unavailable\r\nConnection: close\r\n\r\nInsufficient memory"));
+          closeCurrentClient();
+          return true;
+        }
         size_t bodyLength = 0;
         timeoutStart = millis();
-        while (bodyLength < (size_t)contentLength && localClient->dataAvailable() &&
-               millis()-timeoutStart < WIFI_CONNECTION_TIMEOUT) {
+        while (bodyLength < contentLength &&
+               millis() - timeoutStart < WIFI_CONNECTION_TIMEOUT) {
+          size_t available = localClient->availableBytes();
+          if (available == 0) {
+            waitForRequestData();
+            continue;
+          }
           size_t size =
           #if defined(ARDUINO)
           min
           #else
           std::min
           #endif
-          ((int) (contentLength - bodyLength), 1024);
+          (contentLength - bodyLength, (size_t)1024);
+          size =
+          #if defined(ARDUINO)
+          min
+          #else
+          std::min
+          #endif
+          (size, available);
           size_t read = localClient->readBytes(&bodyBuffer[bodyLength], size);
-          if (read == 0) break;
+          if (read == 0) {
+            waitForRequestData();
+            continue;
+          }
           bodyLength += read;
+        }
+        if (bodyLength != contentLength) {
+          delete[] bodyBuffer;
+          bodyBuffer = nullptr;
+          OTF_DEBUG(F("Timed out before receiving the complete request body\n"));
+          localClient->print(F("HTTP/1.1 408 Request Timeout\r\nConnection: close\r\n\r\nIncomplete request body"));
+          closeCurrentClient();
+          return true;
         }
         bodyBuffer[bodyLength] = 0;
         request.body = bodyBuffer;

@@ -5,3 +5,4 @@ CMakeListsPrivate.txt
 private
 OTF-Controller-Library/example/config.h
 *.o
+/test/test_http_parser

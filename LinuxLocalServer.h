@@ -15,6 +15,7 @@ namespace OTF {
     
   public:
     bool dataAvailable();
+    size_t availableBytes();
     size_t readBytes(char *buffer, size_t length);
     size_t readBytesUntil(char terminator, char *buffer, size_t length);
     void print(const char *data);
