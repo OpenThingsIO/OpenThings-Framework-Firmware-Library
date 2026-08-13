@@ -124,9 +124,7 @@ bool OpenThingsFramework::localServerLoop() {
     localClient->flush();
     localClient->stop();
     localClient = localServer.acceptClient();
-    if (localClient) {
-      wait_to = millis() + WIFI_CONNECTION_TIMEOUT;
-    }
+    wait_to = localClient ? millis() + WIFI_CONNECTION_TIMEOUT : 0;
   };
   if (!wait_to) {
     localClient = localServer.acceptClient();
