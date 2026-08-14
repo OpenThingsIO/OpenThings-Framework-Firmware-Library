@@ -24,6 +24,16 @@ int main() {
   assert(!empty.isValid());
   assert(strcmp(empty.toString(), "") == 0);
 
+  bool wroteInvalidStream = false;
+  bool endedInvalidStream = false;
+  empty.enableStream(
+    [&wroteInvalidStream](const char *, size_t, bool) { wroteInvalidStream = true; },
+    []() {},
+    [&endedInvalidStream]() { endedInvalidStream = true; });
+  assert(!empty.end());
+  assert(!wroteInvalidStream);
+  assert(endedInvalidStream);
+
   volatile size_t impossibleSize = std::numeric_limits<size_t>::max();
   StringBuilder allocationFailure(impossibleSize);
   assert(!allocationFailure.isValid());

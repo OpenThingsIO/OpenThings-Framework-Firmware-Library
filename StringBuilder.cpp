@@ -144,11 +144,17 @@ void StringBuilder::enableStream(stream_write_t write, stream_flush_t flush, str
 }
 
 bool StringBuilder::end() {
-  if (buffer && stream_write && stream_end) {
+  if (!stream_end) return false;
+
+  if (buffer && stream_write) {
     stream_write(buffer, length, streaming);
     stream_end();
     return true;
   }
+
+  // Even an invalid builder must terminate an established stream so the
+  // remote peer is not left waiting for a response that can never arrive.
+  stream_end();
   return false;
 }
 
