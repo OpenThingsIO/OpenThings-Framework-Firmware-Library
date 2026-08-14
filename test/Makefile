@@ -9,7 +9,7 @@ test: test_http_parser test_etherport test_forwarded_request test_request test_s
 	ASAN_OPTIONS=detect_leaks=0 ./test_etherport
 	ASAN_OPTIONS=detect_leaks=0 ./test_forwarded_request
 	ASAN_OPTIONS=detect_leaks=0 ./test_request
-	ASAN_OPTIONS=detect_leaks=0 ./test_string_builder
+	ASAN_OPTIONS=detect_leaks=0:allocator_may_return_null=1 ./test_string_builder
 
 test_http_parser: test_http_parser.cpp ../HttpParser.cpp ../HttpParser.h
 	$(CXX) $(CXXFLAGS) test_http_parser.cpp ../HttpParser.cpp -o $@

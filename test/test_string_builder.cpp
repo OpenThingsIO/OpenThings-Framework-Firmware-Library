@@ -1,6 +1,7 @@
 #include "StringBuilder.hpp"
 
 #include <assert.h>
+#include <limits>
 #include <string.h>
 
 using namespace OTF;
@@ -22,5 +23,12 @@ int main() {
   empty.clear();
   assert(!empty.isValid());
   assert(strcmp(empty.toString(), "") == 0);
+
+  volatile size_t impossibleSize = std::numeric_limits<size_t>::max();
+  StringBuilder allocationFailure(impossibleSize);
+  assert(!allocationFailure.isValid());
+  assert(strcmp(allocationFailure.toString(), "") == 0);
+  allocationFailure.clear();
+  assert(!allocationFailure.isValid());
   return 0;
 }
