@@ -174,7 +174,9 @@ char Request::parseQuery(char *str, size_t length, size_t &index) {
           value = &str[index];
         }
 
-        decodeQueryParameter(value);
+        if (!decodeQueryParameter(value)) {
+          return '\0';
+        }
         REQ_DEBUG((char *) F("Found query parameter '%s' with value '%s'.\n"), key, value);
 
         queryParams.add(key, value);
@@ -257,31 +259,40 @@ bool Request::parseHeader(char *str, size_t length, size_t &index, LinkedMap<cha
   return true;
 }
 
-void Request::decodeQueryParameter(char *value) {
-  unsigned int offset = 0;
-  unsigned int index = 0;
-  while (value[index + offset] != '\0') {
-    REQ_DEBUG((char *) F("Index is %d and offset is %d\n"), index, offset);
-    char character = value[index + offset];
+static uint8_t decodeHexDigit(char digit) {
+  if (digit >= '0' && digit <= '9') return static_cast<uint8_t>(digit - '0');
+  if (digit >= 'a' && digit <= 'f') return static_cast<uint8_t>(digit - 'a' + 10);
+  return static_cast<uint8_t>(digit - 'A' + 10);
+}
+
+bool Request::decodeQueryParameter(char *value) {
+  size_t readIndex = 0;
+  size_t writeIndex = 0;
+  while (value[readIndex] != '\0') {
+    char character = value[readIndex++];
     if (character == '+') {
       character = ' ';
     } else if (character == '%') {
-      char highDigit = value[index + ++offset];
-      char lowDigit = value[index + ++offset];
-      if (highDigit == '\0' || lowDigit == '\0') {
-        // Abort decoding because the query string is illegally formatted.
-        return;
+      char highDigit = value[readIndex];
+      if (highDigit == '\0') return false;
+      char lowDigit = value[readIndex + 1];
+      if (lowDigit == '\0' || !isxdigit(static_cast<unsigned char>(highDigit)) ||
+          !isxdigit(static_cast<unsigned char>(lowDigit))) {
+        return false;
       }
 
-      char hex[3] = {highDigit, lowDigit, '\0'};
-      character = strtol(hex, nullptr, 16);
+      character = static_cast<char>((decodeHexDigit(highDigit) << 4) |
+                                    decodeHexDigit(lowDigit));
+      // A decoded null would truncate the C string while the parser continues
+      // to interpret the remaining bytes as part of the same value.
+      if (character == '\0') return false;
+      readIndex += 2;
     }
 
-    value[index] = character;
-
-    index++;
+    value[writeIndex++] = character;
   }
-  value[index] = '\0';
+  value[writeIndex] = '\0';
+  return true;
 }
 
 char *Request::getPath() const { return path; }

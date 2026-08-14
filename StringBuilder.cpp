@@ -1,10 +1,22 @@
 #include "StringBuilder.hpp"
 
+#include <new>
+
 using namespace OTF;
 
 StringBuilder::StringBuilder(size_t maxLength) {
   this->maxLength = maxLength;
-  buffer = new char[maxLength];
+  if (maxLength == 0) {
+    valid = false;
+    return;
+  }
+
+  buffer = new (std::nothrow) char[maxLength];
+  if (!buffer) {
+    valid = false;
+    return;
+  }
+  buffer[0] = '\0';
 }
 
 StringBuilder::~StringBuilder() {
@@ -61,6 +73,9 @@ void StringBuilder::bprintf(const __FlashStringHelper *const format, ...) {
 #endif
 
 size_t StringBuilder::_write(const char *data, size_t data_length, bool use_pgm) {
+  #if !defined(ARDUINO)
+  (void)use_pgm;
+  #endif
   if (!valid) {
     return -1;
   }
@@ -129,16 +144,23 @@ void StringBuilder::enableStream(stream_write_t write, stream_flush_t flush, str
 }
 
 bool StringBuilder::end() {
-  if (stream_end) {
+  if (!stream_end) return false;
+
+  if (buffer && stream_write) {
     stream_write(buffer, length, streaming);
     stream_end();
     return true;
   }
+
+  // Even an invalid builder must terminate an established stream so the
+  // remote peer is not left waiting for a response that can never arrive.
+  stream_end();
   return false;
 }
 
 char *StringBuilder::toString() const {
-  return &buffer[0];
+  static char emptyString[] = "";
+  return buffer ? buffer : emptyString;
 }
 
 size_t StringBuilder::getLength() const {
@@ -151,8 +173,12 @@ bool StringBuilder::isValid() {
 
 void StringBuilder::clear() {
   length = 0;
-  buffer[0] = '\0';
-  valid = true;
+  if (buffer && maxLength > 0) {
+    buffer[0] = '\0';
+    valid = true;
+  } else {
+    valid = false;
+  }
 }
 
 size_t StringBuilder::getMaxLength() const {

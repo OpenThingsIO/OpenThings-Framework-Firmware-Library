@@ -6,3 +6,7 @@ private
 OTF-Controller-Library/example/config.h
 *.o
 /test/test_http_parser
+/test/test_etherport
+/test/test_forwarded_request
+/test/test_request
+/test/test_string_builder

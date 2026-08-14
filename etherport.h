@@ -49,7 +49,7 @@ class EthernetClient {
 public:
 	EthernetClient();
 	EthernetClient(int sock);
-	~EthernetClient();
+	virtual ~EthernetClient();
 
 	// Deep-copy semantics for tmpbuf so a duplicated client doesn't end up
 	// sharing the buffer (which would cause double-free on destruction).
@@ -88,7 +88,7 @@ class EthernetClientSsl : public EthernetClient {
 public:
 	EthernetClientSsl();
 	EthernetClientSsl(int sock);
-	~EthernetClientSsl();
+	~EthernetClientSsl() override;
 
 	// SSL session pointer cannot be safely shared — disallow copy/move.
 	EthernetClientSsl(const EthernetClientSsl &) = delete;

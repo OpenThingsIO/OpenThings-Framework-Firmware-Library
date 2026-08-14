@@ -1,4 +1,5 @@
 #include "OpenThingsFramework.h"
+#include "ForwardedRequest.h"
 #include "HttpParser.h"
 #include "StringBuilder.hpp"
 #include <string>
@@ -22,6 +23,9 @@
 #define OTF_MAX_BODY_SIZE 8192
 #endif
 
+// Reserve space for the normalized request terminator and intermediate writes.
+static const size_t HEADER_BUFFER_RESERVED_BYTES = 10;
+
 using namespace OTF;
 
 static void waitForRequestData() {
@@ -36,13 +40,14 @@ OpenThingsFramework::OpenThingsFramework(uint16_t webServerPort, char *hdBuffer,
   OTF_DEBUG("Instantiating OTF...\n");
   if(hdBuffer != NULL) { // if header buffer is externally provided, use it directly
     headerBuffer = hdBuffer;
-    headerBufferSize = (hdBufferSize > 0) ? hdBufferSize : HEADERS_BUFFER_SIZE;
+    headerBufferSize = (hdBufferSize > 0) ? static_cast<size_t>(hdBufferSize) : HEADERS_BUFFER_SIZE;
     ownsHeaderBuffer = false;
   } else { // otherwise allocate one
-    headerBuffer = new char[HEADERS_BUFFER_SIZE];
-    headerBufferSize = HEADERS_BUFFER_SIZE;
+    headerBuffer = new (std::nothrow) char[HEADERS_BUFFER_SIZE];
+    headerBufferSize = headerBuffer ? HEADERS_BUFFER_SIZE : 0;
     ownsHeaderBuffer = true;
   }
+  if (headerBuffer && headerBufferSize > 0) headerBuffer[0] = '\0';
   missingPageCallback = defaultMissingPageCallback;
   localServer.begin();
 };
@@ -149,6 +154,13 @@ bool OpenThingsFramework::localServerLoop() {
   // got new client data, reset wait_to to 0
   wait_to = 0;
 
+  if (!headerBuffer || headerBufferSize <= HEADER_BUFFER_RESERVED_BYTES) {
+    OTF_DEBUG(F("Header buffer is unavailable or too small\n"));
+    localClient->print(F("HTTP/1.1 503 Service Unavailable\r\nConnection: close\r\n\r\nInsufficient header buffer"));
+    closeCurrentClient();
+    return true;
+  }
+
 
   // Update the timeout for each data read to ensure that the total timeout is WIFI_CONNECTION_TIMEOUT.
   uint32_t timeoutStart = millis();
@@ -162,7 +174,8 @@ bool OpenThingsFramework::localServerLoop() {
     if (isFirstLine) {
       // Read the first line (Request Line) directly into the main buffer.
       // This supports very long query strings (up to headerBufferSize).
-      size_t read = localClient->readBytesUntil('\n', &buffer[length], headerBufferSize - 10);
+      size_t read = localClient->readBytesUntil('\n', &buffer[length],
+                                                headerBufferSize - HEADER_BUFFER_RESERVED_BYTES);
       length += read;
       buffer[length++] = '\n';
       isFirstLine = false;
@@ -178,7 +191,7 @@ bool OpenThingsFramework::localServerLoop() {
 
     // Selective headers to keep
     if (strncasecmp(line, "content-length:", 15) == 0) {
-      if (length + lineLen + 1 < (size_t)(headerBufferSize - 4)) {
+      if (length + lineLen + 1 < headerBufferSize - 4) {
         memcpy(&buffer[length], line, lineLen);
         length += lineLen;
         buffer[length++] = '\n';
@@ -198,7 +211,7 @@ bool OpenThingsFramework::localServerLoop() {
   buffer[length++] = '\n';
   buffer[length] = 0;
 
-  OTF_DEBUG((char *) F("Finished reading selective data from client. Stored headers size: %d bytes\n"), length);
+  OTF_DEBUG((char *) F("Finished reading selective data from client. Stored headers size: %zu bytes\n"), length);
 
   OTF_DEBUG(F("Parsing request"));
   Request request(buffer, length, false);
@@ -355,20 +368,10 @@ void OpenThingsFramework::webSocketEventCallback(WSEvent_t type, uint8_t *payloa
     }
 
     case WSEvent_TEXT: {
-      #define PREFIX_LENGTH 5
-      #define ID_LENGTH 4
-      // Length of the prefix, request ID, carriage return, and line feed.
-      #define HEADER_LENGTH PREFIX_LENGTH + ID_LENGTH + 2
-
-      char *message_data = (char*) payload;
-
-      if (strncmp_P(message_data, (char *) F("FWD: "), PREFIX_LENGTH) == 0) {
+      ForwardedRequest forwarded;
+      if (parseForwardedRequest(payload, length, forwarded)) {
         OTF_DEBUG(F("Message is a forwarded request.\n"));
-        char *requestId = &message_data[PREFIX_LENGTH];
-        // Replace the assumed carriage return with a null character to terminate the ID string.
-        requestId[ID_LENGTH] = '\0';
-
-        Request request(&message_data[HEADER_LENGTH], length - HEADER_LENGTH, true);
+        Request request(forwarded.requestData, forwarded.requestLength, true);
         Response res = Response();
         // Make response stream to websocket
         res.enableStream([this] (const char *buffer, size_t length, bool first_message) -> void {
@@ -388,7 +391,7 @@ void OpenThingsFramework::webSocketEventCallback(WSEvent_t type, uint8_t *payloa
           webSocket->end();
         });
 
-        res.bprintf(F("RES: %s\r\n"), requestId);
+        res.bprintf(F("RES: %s\r\n"), forwarded.requestId);
         fillResponse(request, res);
         // Make sure to end the stream if it was enabled.
         res.end();
@@ -398,7 +401,7 @@ void OpenThingsFramework::webSocketEventCallback(WSEvent_t type, uint8_t *payloa
         } else {
           OTF_DEBUG(F("An error occurred building response string\n"));
           StringBuilder builder(100);
-          builder.bprintf(F("RES: %s\r\n%s"), requestId,
+          builder.bprintf(F("RES: %s\r\n%s"), forwarded.requestId,
                           F("HTTP/1.1 500 Internal Error\r\n\r\nAn internal error occurred"));
           if (!builder.isValid()) {
             OTF_DEBUG(F("Builder is not valid\n"));
