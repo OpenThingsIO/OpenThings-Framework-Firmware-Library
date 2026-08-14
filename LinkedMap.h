@@ -22,6 +22,9 @@ namespace OTF {
     LinkedMapNode<T> *tail = nullptr;
 
     LinkedMapNode<T> *_findNode(const char *key, bool keyInFlash = false) const {
+      #if !defined(ARDUINO)
+      (void)keyInFlash;
+      #endif
       LinkedMapNode<T> *node = head;
       while (node != nullptr) {
         #if defined(ARDUINO)

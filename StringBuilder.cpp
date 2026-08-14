@@ -61,6 +61,9 @@ void StringBuilder::bprintf(const __FlashStringHelper *const format, ...) {
 #endif
 
 size_t StringBuilder::_write(const char *data, size_t data_length, bool use_pgm) {
+  #if !defined(ARDUINO)
+  (void)use_pgm;
+  #endif
   if (!valid) {
     return -1;
   }

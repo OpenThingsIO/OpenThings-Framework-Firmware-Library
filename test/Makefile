@@ -4,10 +4,11 @@ SANITIZER_FLAGS ?= -fsanitize=address,undefined -fno-omit-frame-pointer
 
 .PHONY: test clean
 
-test: test_http_parser test_etherport test_forwarded_request
+test: test_http_parser test_etherport test_forwarded_request test_request
 	./test_http_parser
 	ASAN_OPTIONS=detect_leaks=0 ./test_etherport
 	ASAN_OPTIONS=detect_leaks=0 ./test_forwarded_request
+	ASAN_OPTIONS=detect_leaks=0 ./test_request
 
 test_http_parser: test_http_parser.cpp ../HttpParser.cpp ../HttpParser.h
 	$(CXX) $(CXXFLAGS) test_http_parser.cpp ../HttpParser.cpp -o $@
@@ -20,5 +21,9 @@ test_forwarded_request: test_forwarded_request.cpp ../ForwardedRequest.cpp ../Fo
 	$(CXX) $(CXXFLAGS) $(SANITIZER_FLAGS) test_forwarded_request.cpp \
 		../ForwardedRequest.cpp -o $@
 
+test_request: test_request.cpp ../Request.cpp ../Request.h ../StringBuilder.cpp ../StringBuilder.hpp ../LinkedMap.h
+	$(CXX) $(CXXFLAGS) $(SANITIZER_FLAGS) test_request.cpp ../Request.cpp \
+		../StringBuilder.cpp -o $@
+
 clean:
-	rm -f test_http_parser test_etherport test_forwarded_request
+	rm -f test_http_parser test_etherport test_forwarded_request test_request

@@ -30,6 +30,8 @@
 
 namespace OTF {
 
+  class RequestTestAccess;
+
   enum HTTPMethod {
     HTTP_ANY,
     HTTP_GET,
@@ -47,6 +49,7 @@ namespace OTF {
 
   class Request {
     friend class OpenThingsFramework;
+    friend class RequestTestAccess;
 
   private:
     enum HTTPMethod httpMethod;
@@ -88,7 +91,7 @@ namespace OTF {
      * Decodes the specified query string, updating and null-terminating the string in-place.
      * @param value a null-terminated query value.
      */
-    static void decodeQueryParameter(char *value);
+    static bool decodeQueryParameter(char *value);
 
     /**
      * Parses an HTTP request. The parser makes some assumptions about the message format that may not hold if the
