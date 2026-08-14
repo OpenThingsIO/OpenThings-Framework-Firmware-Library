@@ -1,4 +1,5 @@
 #include "OpenThingsFramework.h"
+#include "ForwardedRequest.h"
 #include "HttpParser.h"
 #include "StringBuilder.hpp"
 #include <string>
@@ -367,20 +368,10 @@ void OpenThingsFramework::webSocketEventCallback(WSEvent_t type, uint8_t *payloa
     }
 
     case WSEvent_TEXT: {
-      #define PREFIX_LENGTH 5
-      #define ID_LENGTH 4
-      // Length of the prefix, request ID, carriage return, and line feed.
-      #define HEADER_LENGTH PREFIX_LENGTH + ID_LENGTH + 2
-
-      char *message_data = (char*) payload;
-
-      if (strncmp_P(message_data, (char *) F("FWD: "), PREFIX_LENGTH) == 0) {
+      ForwardedRequest forwarded;
+      if (parseForwardedRequest(payload, length, forwarded)) {
         OTF_DEBUG(F("Message is a forwarded request.\n"));
-        char *requestId = &message_data[PREFIX_LENGTH];
-        // Replace the assumed carriage return with a null character to terminate the ID string.
-        requestId[ID_LENGTH] = '\0';
-
-        Request request(&message_data[HEADER_LENGTH], length - HEADER_LENGTH, true);
+        Request request(forwarded.requestData, forwarded.requestLength, true);
         Response res = Response();
         // Make response stream to websocket
         res.enableStream([this] (const char *buffer, size_t length, bool first_message) -> void {
@@ -400,7 +391,7 @@ void OpenThingsFramework::webSocketEventCallback(WSEvent_t type, uint8_t *payloa
           webSocket->end();
         });
 
-        res.bprintf(F("RES: %s\r\n"), requestId);
+        res.bprintf(F("RES: %s\r\n"), forwarded.requestId);
         fillResponse(request, res);
         // Make sure to end the stream if it was enabled.
         res.end();
@@ -410,7 +401,7 @@ void OpenThingsFramework::webSocketEventCallback(WSEvent_t type, uint8_t *payloa
         } else {
           OTF_DEBUG(F("An error occurred building response string\n"));
           StringBuilder builder(100);
-          builder.bprintf(F("RES: %s\r\n%s"), requestId,
+          builder.bprintf(F("RES: %s\r\n%s"), forwarded.requestId,
                           F("HTTP/1.1 500 Internal Error\r\n\r\nAn internal error occurred"));
           if (!builder.isValid()) {
             OTF_DEBUG(F("Builder is not valid\n"));
