@@ -31,8 +31,8 @@ namespace OTF {
    */
   class StringBuilder {
   private:
-    size_t maxLength;
-    char *buffer;
+    size_t maxLength = 0;
+    char *buffer = nullptr;
     size_t length = 0;
     size_t totalLength = 0;
 
