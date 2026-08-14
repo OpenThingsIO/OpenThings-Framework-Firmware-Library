@@ -18,9 +18,10 @@ test_etherport: test_etherport.cpp ../etherport.cpp ../etherport.h
 	$(CXX) $(CXXFLAGS) $(SANITIZER_FLAGS) test_etherport.cpp ../etherport.cpp \
 		-lssl -lcrypto -o $@
 
-test_forwarded_request: test_forwarded_request.cpp ../ForwardedRequest.cpp ../ForwardedRequest.h
+test_forwarded_request: test_forwarded_request.cpp ../ForwardedRequest.cpp ../ForwardedRequest.h \
+	../Request.cpp ../Request.h ../StringBuilder.cpp ../StringBuilder.hpp ../LinkedMap.h
 	$(CXX) $(CXXFLAGS) $(SANITIZER_FLAGS) test_forwarded_request.cpp \
-		../ForwardedRequest.cpp -o $@
+		../ForwardedRequest.cpp ../Request.cpp ../StringBuilder.cpp -o $@
 
 test_request: test_request.cpp ../Request.cpp ../Request.h ../StringBuilder.cpp ../StringBuilder.hpp ../LinkedMap.h
 	$(CXX) $(CXXFLAGS) $(SANITIZER_FLAGS) test_request.cpp ../Request.cpp \

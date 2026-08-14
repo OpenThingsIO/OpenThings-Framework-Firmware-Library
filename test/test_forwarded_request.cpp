@@ -1,9 +1,26 @@
 #include "ForwardedRequest.h"
+#include "Request.h"
 
 #include <assert.h>
 #include <string.h>
 
 using namespace OTF;
+
+namespace OTF {
+
+class RequestTestAccess {
+public:
+  static void expectForwardedBody(const ForwardedRequest &forwarded,
+                                  const char *expectedBody, size_t expectedLength) {
+    Request request(forwarded.requestData, forwarded.requestLength, true);
+    assert(request.getType() == NORMAL);
+    assert(request.isCloudRequest());
+    assert(request.getBodyLength() == expectedLength);
+    assert(memcmp(request.getBody(), expectedBody, expectedLength) == 0);
+  }
+};
+
+} // namespace OTF
 
 static void expectInvalid(uint8_t *payload, size_t length) {
   ForwardedRequest request;
@@ -48,5 +65,6 @@ int main() {
   assert(strcmp(request.requestData,
                 "POST /test HTTP/1.1\r\nContent-Length: 4\r\n\r\ndata") == 0);
   assert(request.requestLength == frameLength - 11);
+  RequestTestAccess::expectForwardedBody(request, "data", 4);
   return 0;
 }
