@@ -65,7 +65,7 @@ EthernetServer::~EthernetServer()
 
 bool EthernetServer::begin()
 {
-	struct sockaddr_in6 sin = {0};
+	struct sockaddr_in6 sin = {};
 	sin.sin6_family = AF_INET6;
 	sin.sin6_port = htons(m_port);
 	sin.sin6_addr = in6addr_any;
@@ -209,7 +209,7 @@ int EthernetClient::connect(const char* server, uint16_t port)
 		return 0;
 	}
 
-	struct sockaddr_in sin = {0};
+	struct sockaddr_in sin = {};
 	sin.sin_family = AF_INET;
 	sin.sin_port = htons(port);
 	memcpy(&sin.sin_addr.s_addr, host->h_addr, sizeof(sin.sin_addr.s_addr));
@@ -443,7 +443,7 @@ int EthernetClientSsl::connect(const char* server, uint16_t port)
 		return 0;
 	}
 
-	struct sockaddr_in sin = {0};
+	struct sockaddr_in sin = {};
 	sin.sin_family = AF_INET;
 	sin.sin_port = htons(port);
 	memcpy(&sin.sin_addr.s_addr, host->h_addr, sizeof(sin.sin_addr.s_addr));

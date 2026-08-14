@@ -63,7 +63,7 @@ namespace OTF {
     CLOUD_STATUS cloudStatus = NOT_ENABLED;
     uint32_t lastCloudStatusChangeTime = millis();
     char *headerBuffer = NULL;
-    int headerBufferSize = 0;
+    size_t headerBufferSize = 0;
     bool ownsHeaderBuffer = false;
 
     void webSocketEventCallback(WSEvent_t type, uint8_t *payload, size_t length);
