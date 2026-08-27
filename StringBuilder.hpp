@@ -50,6 +50,15 @@ namespace OTF {
   protected:
     bool valid = true;
 
+    // Keep the va_list entry point distinctly named. On RISC-V, va_list is a
+    // void pointer, so overloading bprintf(format, va_list) can capture an
+    // ordinary bprintf(format, char_pointer) call.
+    void vbprintf(const char *format, va_list args);
+
+#if defined(ARDUINO)
+    void vbprintf(const __FlashStringHelper *const format, va_list args);
+#endif
+
   public:
     explicit StringBuilder(size_t maxLength);
 
@@ -60,12 +69,9 @@ namespace OTF {
      * @param format The format string to pass to sprintf.
      * @param ... The format arguments to pass to sprintf.
      */
-    void bprintf(const char *format, va_list args);
-
-    void bprintf(const char *format, ...);
+    void bprintf(const char *format, ...) __attribute__((format(printf, 2, 3)));
 
 #if defined(ARDUINO)
-    void bprintf(const __FlashStringHelper *const format, va_list args);
     void bprintf(const __FlashStringHelper *const format, ...);
 #endif
 
