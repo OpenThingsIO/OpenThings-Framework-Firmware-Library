@@ -4,6 +4,18 @@
 
 using namespace OTF;
 
+namespace {
+
+int format_string(char *destination, size_t capacity, const char *format, va_list args) {
+  va_list copy;
+  va_copy(copy, args);
+  int result = vsnprintf(destination, capacity, format, copy);
+  va_end(copy);
+  return result;
+}
+
+} // namespace
+
 StringBuilder::StringBuilder(size_t maxLength) {
   this->maxLength = maxLength;
   if (maxLength == 0) {
@@ -23,22 +35,31 @@ StringBuilder::~StringBuilder() {
   delete[] buffer;
 }
 
-void StringBuilder::bprintf(const char *format, va_list args) {
+void StringBuilder::vbprintf(const char *format, va_list args) {
   // Don't do anything if the buffer already contains invalid data.
   if (!valid) {
     return;
   }
 
-  size_t res = vsnprintf(&buffer[length], maxLength - length, format, args);
-
+  int result = format_string(&buffer[length], maxLength - length, format, args);
+  if (result < 0) {
+    valid = false;
+    return;
+  }
+  size_t res = static_cast<size_t>(result);
 
   if (streaming && ((res >= maxLength) || (length + res >= maxLength))) {
     // If in streaming mode flush the buffer and continue writing if the data doesn't fit.
-    stream_write(buffer, length, streaming);
+    stream_write(buffer, length, first_message);
     first_message = false;
     stream_flush();
     clear();
-    res = vsnprintf(&buffer[length], maxLength - length, format, args);
+    result = format_string(&buffer[length], maxLength - length, format, args);
+    if (result < 0) {
+      valid = false;
+      return;
+    }
+    res = static_cast<size_t>(result);
   }
 
   totalLength += res;
@@ -55,19 +76,19 @@ void StringBuilder::bprintf(const char *format, va_list args) {
 void StringBuilder::bprintf(const char *const format, ...) {
   va_list args;
   va_start(args, format);
-  bprintf(format, args);
+  vbprintf(format, args);
   va_end(args);
 }
 
 #if defined(ARDUINO)
-void StringBuilder::bprintf(const __FlashStringHelper *const format, va_list args) {
-  bprintf((const char *) format, args);
+void StringBuilder::vbprintf(const __FlashStringHelper *const format, va_list args) {
+  vbprintf((const char *) format, args);
 }
 
 void StringBuilder::bprintf(const __FlashStringHelper *const format, ...) {
   va_list args;
   va_start(args, format);
-  bprintf(format, args);
+  vbprintf(format, args);
   va_end(args);
 }
 #endif
@@ -94,7 +115,7 @@ size_t StringBuilder::_write(const char *data, size_t data_length, bool use_pgm)
     // If the buffer is full, flush it and continue writing.
     if (write_length == 0) {
       if (streaming) {
-        stream_write(buffer, length, streaming);
+        stream_write(buffer, length, first_message);
         first_message = false;
         stream_flush();
         clear();
@@ -147,7 +168,8 @@ bool StringBuilder::end() {
   if (!stream_end) return false;
 
   if (buffer && stream_write) {
-    stream_write(buffer, length, streaming);
+    stream_write(buffer, length, first_message);
+    first_message = false;
     stream_end();
     return true;
   }

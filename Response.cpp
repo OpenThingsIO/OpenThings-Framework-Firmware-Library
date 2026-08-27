@@ -118,7 +118,7 @@ void Response::writeBodyChunk(const char *const format, ...) {
 
   va_list args;
   va_start(args, format);
-  bprintf(format, args);
+  vbprintf(format, args);
   va_end(args);
 }
 
@@ -135,7 +135,7 @@ void Response::writeBodyChunk(const __FlashStringHelper *const format, ...) {
 
   va_list args;
   va_start(args, format);
-  bprintf(format, args);
+  vbprintf(format, args);
   va_end(args);
 }
 #endif
