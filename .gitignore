@@ -10,3 +10,5 @@ OTF-Controller-Library/example/config.h
 /test/test_forwarded_request
 /test/test_request
 /test/test_string_builder
+/test/test_cloud_dispatch_arduino
+/test/test_cloud_dispatch_linux

@@ -24,17 +24,23 @@ bool hasForwardedPrefix(const char *message) {
 
 namespace OTF {
 
-bool parseForwardedRequest(uint8_t *payload, size_t length, ForwardedRequest &request) {
-  request = ForwardedRequest();
+bool validateForwardedRequest(const uint8_t *payload, size_t length) {
   if (!payload || length < HEADER_LENGTH) return false;
 
-  char *message = reinterpret_cast<char *>(payload);
+  const char *message = reinterpret_cast<const char *>(payload);
   if (!hasForwardedPrefix(message)) return false;
   if (message[PREFIX_LENGTH + ID_LENGTH] != '\r' ||
       message[PREFIX_LENGTH + ID_LENGTH + 1] != '\n') {
     return false;
   }
+  return true;
+}
 
+bool parseForwardedRequest(uint8_t *payload, size_t length, ForwardedRequest &request) {
+  request = ForwardedRequest();
+  if (!validateForwardedRequest(payload, length)) return false;
+
+  char *message = reinterpret_cast<char *>(payload);
   request.requestId = message + PREFIX_LENGTH;
   request.requestData = message + HEADER_LENGTH;
   request.requestLength = length - HEADER_LENGTH;

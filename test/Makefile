@@ -4,12 +4,26 @@ SANITIZER_FLAGS ?= -fsanitize=address,undefined -fno-omit-frame-pointer
 
 .PHONY: test clean
 
-test: test_http_parser test_etherport test_forwarded_request test_request test_string_builder
+test: test_http_parser test_etherport test_forwarded_request test_request test_string_builder test_cloud_dispatch_arduino test_cloud_dispatch_linux
 	./test_http_parser
 	ASAN_OPTIONS=detect_leaks=0 ./test_etherport
 	ASAN_OPTIONS=detect_leaks=0 ./test_forwarded_request
 	ASAN_OPTIONS=detect_leaks=0 ./test_request
 	ASAN_OPTIONS=detect_leaks=0:allocator_may_return_null=1 ./test_string_builder
+	ASAN_OPTIONS=detect_leaks=1 ./test_cloud_dispatch_arduino
+	ASAN_OPTIONS=detect_leaks=1 ./test_cloud_dispatch_linux
+
+CLOUD_SOURCES = test_cloud_dispatch.cpp ../OpenThingsFramework.cpp ../ForwardedRequest.cpp \
+	../Request.cpp ../Response.cpp ../StringBuilder.cpp ../HttpParser.cpp
+CLOUD_HEADERS = fakes/cloud_transport.h fakes/Arduino.h $(wildcard ../*.h ../*.hpp)
+
+test_cloud_dispatch_arduino: $(CLOUD_SOURCES) $(CLOUD_HEADERS)
+	$(CXX) $(CXXFLAGS) -Wno-unused-parameter $(SANITIZER_FLAGS) -Ifakes -DARDUINO=10800 -DESP8266 \
+		-include fakes/cloud_transport.h $(CLOUD_SOURCES) -Wl,--wrap=malloc -o $@
+
+test_cloud_dispatch_linux: $(CLOUD_SOURCES) $(CLOUD_HEADERS)
+	$(CXX) $(CXXFLAGS) -Wno-unused-parameter $(SANITIZER_FLAGS) -include fakes/cloud_transport.h \
+		$(CLOUD_SOURCES) -Wl,--wrap=malloc -o $@
 
 test_http_parser: test_http_parser.cpp ../HttpParser.cpp ../HttpParser.h
 	$(CXX) $(CXXFLAGS) test_http_parser.cpp ../HttpParser.cpp -o $@
@@ -32,4 +46,5 @@ test_string_builder: test_string_builder.cpp ../StringBuilder.cpp ../StringBuild
 		../StringBuilder.cpp -o $@
 
 clean:
-	rm -f test_http_parser test_etherport test_forwarded_request test_request test_string_builder
+	rm -f test_http_parser test_etherport test_forwarded_request test_request test_string_builder \
+		test_cloud_dispatch_arduino test_cloud_dispatch_linux

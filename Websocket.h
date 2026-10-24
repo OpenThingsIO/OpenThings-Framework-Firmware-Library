@@ -108,7 +108,8 @@ public:
    * @brief Close the connection to the websocket server
    * 
    */
-  void close() {
+  void close(bool reconnect = false) {
+    (void)reconnect; // Arduino reconnects automatically after disconnect().
     WS_DEBUG("Closing connection\n");
     WebSocketsClient::disconnect();
   }
@@ -141,6 +142,8 @@ public:
    * flag stuck at true after reconnect.
    */
   void resetStreaming();
+
+  bool isStreamOpen() const { return isStreaming; }
 
   /**
    * @brief Poll the websocket connection
@@ -295,8 +298,8 @@ public:
    * @brief Close the connection to the websocket server
    * 
    */
-  void close() {
-    shouldReconnect = false;
+  void close(bool reconnect = false) {
+    shouldReconnect = reconnect;
     heartbeatMissed = 0;
     heartbeatInProgress = false;
     websockets::WebsocketsClient::close();
