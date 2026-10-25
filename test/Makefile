@@ -4,7 +4,7 @@ SANITIZER_FLAGS ?= -fsanitize=address,undefined -fno-omit-frame-pointer
 
 .PHONY: test clean
 
-test: test_http_parser test_etherport test_forwarded_request test_request test_string_builder test_cloud_dispatch_arduino test_cloud_dispatch_linux
+test: test_http_parser test_etherport test_forwarded_request test_request test_string_builder test_cloud_dispatch_arduino test_cloud_dispatch_linux test_websocket_reconnect test_websocket_reconnect_esp32
 	./test_http_parser
 	ASAN_OPTIONS=detect_leaks=0 ./test_etherport
 	ASAN_OPTIONS=detect_leaks=0 ./test_forwarded_request
@@ -12,6 +12,16 @@ test: test_http_parser test_etherport test_forwarded_request test_request test_s
 	ASAN_OPTIONS=detect_leaks=0:allocator_may_return_null=1 ./test_string_builder
 	ASAN_OPTIONS=detect_leaks=1 ./test_cloud_dispatch_arduino
 	ASAN_OPTIONS=detect_leaks=1 ./test_cloud_dispatch_linux
+	ASAN_OPTIONS=detect_leaks=1 ./test_websocket_reconnect
+	ASAN_OPTIONS=detect_leaks=1 ./test_websocket_reconnect_esp32
+
+test_websocket_reconnect: test_websocket_reconnect.cpp fakes/reconnect/WebSocketsClient.h fakes/Arduino.h ../Websocket.cpp ../Websocket.h
+	$(CXX) $(CXXFLAGS) $(SANITIZER_FLAGS) -Ifakes/reconnect -Ifakes -DARDUINO=10800 -DESP8266 \
+		test_websocket_reconnect.cpp ../Websocket.cpp -o $@
+
+test_websocket_reconnect_esp32: test_websocket_reconnect.cpp fakes/reconnect/WebSocketsClient.h fakes/Arduino.h ../Websocket.cpp ../Websocket.h
+	$(CXX) $(CXXFLAGS) $(SANITIZER_FLAGS) -Ifakes/reconnect -Ifakes -DARDUINO=10800 -DESP32 \
+		test_websocket_reconnect.cpp ../Websocket.cpp -o $@
 
 CLOUD_SOURCES = test_cloud_dispatch.cpp ../OpenThingsFramework.cpp ../ForwardedRequest.cpp \
 	../Request.cpp ../Response.cpp ../StringBuilder.cpp ../HttpParser.cpp
@@ -47,4 +57,4 @@ test_string_builder: test_string_builder.cpp ../StringBuilder.cpp ../StringBuild
 
 clean:
 	rm -f test_http_parser test_etherport test_forwarded_request test_request test_string_builder \
-		test_cloud_dispatch_arduino test_cloud_dispatch_linux
+		test_cloud_dispatch_arduino test_cloud_dispatch_linux test_websocket_reconnect test_websocket_reconnect_esp32

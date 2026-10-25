@@ -13,8 +13,8 @@ void WebsocketClient::setReconnectInterval(uint32_t interval) {
   reconnectInterval = interval;
   reconnectDelay = interval;
   reconnectLastAttempt = millis()-interval;
-  // Reconnection pacing is managed here so failed attempts can back off.
-  WebSocketsClient::setReconnectInterval(0);
+  // Keep a library-level floor for reconnects started inside its loop().
+  WebSocketsClient::setReconnectInterval(interval);
 }
 
 void WebsocketClient::resetStreaming() {
@@ -23,8 +23,14 @@ void WebsocketClient::resetStreaming() {
 
 void WebsocketClient::poll() {
   if (_client.status == WSC_NOT_CONNECTED) {
+    // Clean up a retained failed socket before checking the retry clock.
+    clientIsConnected(&_client);
     uint32_t now = millis();
     if (now-reconnectLastAttempt < reconnectDelay) {
+      return;
+    }
+    // A library-throttled poll is not a failed connection attempt.
+    if ((uint32_t)(now-_lastConnectionFail) < _reconnectInterval) {
       return;
     }
 
