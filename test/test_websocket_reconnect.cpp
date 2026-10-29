@@ -1,159 +1,155 @@
 #include "Websocket.h"
 #include <cassert>
 #include <cstdio>
+#include <set>
 
 namespace ReconnectTest {
-uint32_t now;
-uint32_t connectDuration;
-uint32_t cleanupDuration;
+uint32_t now, connectDuration, cleanupDuration;
 Peer peer;
-std::vector<uint32_t> attempts;
-std::vector<uint32_t> disconnects;
+std::vector<uint32_t> attempts, disconnects;
 }
-
 uint32_t millis() { return ReconnectTest::now; }
+uint32_t esp_random() { return 0x374b08a5; }
+long secureRandom(long maximum) { return esp_random() % maximum; }
+FakeESP ESP;
 
 class Client : public WebsocketClient {
 public:
   void tick() { advancePeer(); poll(); }
   void dropTcp() { tcpUp = false; }
+  void pong() { if (callback) callback(WStype_PONG, nullptr, 0); }
+  void rejectAuth() {
+    uint8_t reason[] = "HTTP 401";
+    if (callback) callback(WStype_DISCONNECTED, reason, 8);
+    dropTcp();
+  }
   bool connected() const { return _client.status == WSC_CONNECTED; }
 };
-
 static void reset(ReconnectTest::Peer peer, uint32_t start = 60000,
-                  uint32_t connectDuration = 0, uint32_t cleanupDuration = 0) {
+                  uint32_t duration = 0, uint32_t cleanup = 0) {
   ReconnectTest::now = start;
   ReconnectTest::peer = peer;
-  ReconnectTest::connectDuration = connectDuration;
-  ReconnectTest::cleanupDuration = cleanupDuration;
+  ReconnectTest::connectDuration = duration;
+  ReconnectTest::cleanupDuration = cleanup;
   ReconnectTest::attempts.clear();
   ReconnectTest::disconnects.clear();
 }
-
-static void begin(Client &client, uint32_t interval = 5000) {
+static void begin(Client &client) {
   client.connect("test.invalid", 80, "/socket");
-  client.setReconnectInterval(interval);
+  client.setReconnectInterval(5000);
 }
-
-static void run(Client &client, uint32_t duration) {
+static void run(Client &client, uint32_t duration, bool traffic = false) {
   uint32_t start = millis();
-  while (static_cast<uint32_t>(millis()-start) < duration) {
+  while (uint32_t(millis()-start) < duration) {
     client.tick();
+    if (traffic && client.connected()) client.pong();
     ReconnectTest::now += 10;
   }
 }
-
-static uint32_t gap(size_t i) {
-  return ReconnectTest::attempts[i]-ReconnectTest::attempts[i-1];
-}
-
-static void burst(ReconnectTest::Peer peer, uint32_t start = 60000) {
-  reset(peer, start, 30);
+static void outage(ReconnectTest::Peer peer, uint32_t start = 60000,
+                   uint32_t duration = 0, uint32_t cleanup = 0) {
+  using namespace ReconnectTest;
+  reset(peer, start, duration, cleanup);
   Client client;
   begin(client);
-  run(client, 60000);
-  assert(ReconnectTest::attempts.size() >= 10 && ReconnectTest::attempts.size() <= 12);
-  for (size_t i=1; i<ReconnectTest::attempts.size(); ++i) assert(gap(i) >= 5000 && gap(i) <= 5100);
-}
-
-static void refusal(uint32_t connectDuration, uint32_t firstGap, uint32_t start = 60000) {
-  reset(ReconnectTest::Peer::Refuse, start, connectDuration);
-  Client client;
-  begin(client);
+  client.enableHeartbeat(100, 50, 1);
   run(client, 900000);
-  assert(ReconnectTest::attempts.size() >= 5);
-  assert(gap(1) >= firstGap && gap(1) <= firstGap+20);
-  assert(gap(2) == 60000 && gap(3) == 300000 && gap(4) == 300000);
+  assert(attempts.size() >= 8 && attempts.size() <= 13);
+  assert(uint32_t(attempts[0]-start) >= 1000 && uint32_t(attempts[0]-start) <= 5010);
+  uint32_t base = 5000;
+  for (size_t i=1; i<attempts.size(); ++i) {
+    uint32_t gap = attempts[i]-attempts[i-1];
+    assert(gap >= base/2+duration);
+    assert(gap <= base+duration+cleanup+5300);
+    base = base >= 150000 ? 300000 : base*2;
+  }
 }
-
 int main() {
   using namespace ReconnectTest;
-  burst(Peer::SilentBeforeUpgrade);
-  burst(Peer::SilentAfterUpgrade);
-  burst(Peer::SilentAfterUpgrade, 0xffffffffu-20000);
-  burst(Peer::HttpReject);
-  burst(Peer::CloseFrame);
-  refusal(0, 15000);
-  refusal(12000, 17000);
-  refusal(12000, 17000, 0xffffffffu-14000);
+  // Identical random output (for example RF-off) still mixes in device identity.
+  std::set<uint32_t> deviceStartup;
+  for (uint32_t id = 1; id <= 100; ++id) {
+    reset(Peer::Refuse);
+    ESP.chipId = id;
+    ESP.mac = 0xaabbcc000000ULL | id;
+    Client client;
+    begin(client);
+    run(client, 5100);
+    assert(!attempts.empty());
+    deviceStartup.insert(attempts.front());
+  }
+  assert(deviceStartup.size() > 50);
+  for (Peer p : {Peer::Refuse, Peer::SilentBeforeUpgrade, Peer::SilentAfterUpgrade,
+                 Peer::HttpReject, Peer::CloseFrame, Peer::HeaderTimeout,
+                 Peer::HeartbeatTimeout}) {
+    outage(p);
+    outage(p, 0xfffff000u, 30, 1);
+  }
+  outage(Peer::Refuse, 2000, 12000, 1);
+  outage(Peer::Refuse, 0xfffff000u, 12000, 1);
 
-  reset(Peer::Healthy, 2000);
-  {
+  // A handshake alone must not reset the high backoff; sustained traffic must.
+  for (bool stable : {false, true}) {
+    reset(Peer::Refuse);
     Client client;
     begin(client);
-    run(client, 10000);
-    assert(attempts.size() == 1 && attempts[0] == 5000);
-  }
-  reset(Peer::Healthy);
-  {
-    Client client;
-    begin(client);
-    run(client, 100);
-    assert(client.connected());
-    uint32_t closed = now;
-    client.close(true);
-    run(client, 10000);
-    assert(attempts.size() == 2 && attempts[1]-closed == 5000);
-    assert(client.connected());
-  }
-  reset(Peer::Healthy);
-  {
-    Client client;
-    begin(client);
-    run(client, 100);
-    uint32_t dropped = now;
-    client.dropTcp();
-    run(client, 10000);
-    assert(attempts.size() == 2 && attempts[1]-dropped == 5000);
-    assert(client.connected());
-  }
-  reset(Peer::HeartbeatTimeout);
-  {
-    Client client;
-    begin(client);
-    client.enableHeartbeat(100, 50, 1);
-    run(client, 1000);
-    assert(disconnects.size() == 1 && attempts.size() == 1);
-    uint32_t lost = disconnects[0];
+    run(client, 600000);
     peer = Peer::Healthy;
+    run(client, 370000, stable);
+    assert(client.connected());
+    size_t count = attempts.size();
+    uint32_t drop = now;
+    client.dropTcp();
+    run(client, stable ? 6000 : 310000);
+    assert(attempts.size() == count+1 && client.connected());
+    uint32_t gap = attempts.back()-drop;
+    assert(stable ? (gap >= 2500 && gap <= 5020) : (gap >= 150000 && gap <= 300020));
+  }
+  reset(Peer::Healthy);
+  {
+    Client client;
+    begin(client);
     run(client, 6000);
-    assert(attempts.size() == 2 && attempts[1]-lost == 5000);
+    assert(client.connected());
+    client.close(false);
+    size_t n = attempts.size();
+    run(client, 600000);
+    assert(attempts.size() == n);
+    begin(client);
+    run(client, 6000);
+    assert(attempts.size() == n+1 && client.connected());
+    client.onEvent([&](WSEvent_t, uint8_t *, size_t) { client.poll(); });
+    client.close(true);
+    run(client, 6000);
+    assert(attempts.size() == n+2);
   }
-  reset(Peer::HeaderTimeout);
+  // Independently seeded fleet: startup and capped retries must disperse.
+  reset(Peer::Healthy);
   {
     Client client;
     begin(client);
-    run(client, 20000);
-    assert(attempts.size() == 2 && gap(1) >= 10000 && gap(1) <= 10020);
+    run(client, 6000);
+    client.rejectAuth();
+    size_t n = attempts.size();
+    run(client, 149000);
+    assert(attempts.size() == n);
+    run(client, 152000);
+    assert(attempts.size() == n+1);
   }
-  reset(Peer::Healthy, 0);
-  {
-    Client client;
-    begin(client, 0);
-    run(client, 100);
-    assert(attempts.size() == 1 && attempts[0] == 0 && client.connected());
+  std::set<uint32_t> startup, capped;
+  for (uint32_t seed=1; seed<=2000; ++seed) {
+    ReconnectPolicy p;
+    p.configure(0xfffff000u, seed, 5000);
+    uint32_t elapsed=0;
+    while (!p.ready(0xfffff000u+elapsed)) ++elapsed;
+    assert(elapsed >= 1000 && elapsed <= 5000);
+    startup.insert(elapsed);
+    for (int i=0;i<8;++i) p.failed(0xfffff000u);
+    elapsed=0;
+    while (!p.ready(0xfffff000u+elapsed)) elapsed+=100;
+    assert(elapsed >= 150000 && elapsed <= 300100);
+    capped.insert(elapsed);
   }
-  reset(Peer::Refuse);
-  {
-    Client client;
-    begin(client);
-    run(client, 20000);
-    assert(attempts.size() == 2);
-    peer = Peer::Healthy;
-    run(client, 60000);
-    assert(attempts.size() == 3 && client.connected());
-    uint32_t dropped = now;
-    client.dropTcp();
-    run(client, 10000);
-    assert(attempts.size() == 4 && attempts.back()-dropped == 5000);
-  }
-  reset(Peer::Refuse, 60000, 12000, 1);
-  {
-    Client client;
-    begin(client);
-    run(client, 100000);
-    assert(attempts.size() >= 3 && gap(1) >= 17000 && gap(1) <= 17020 &&
-           gap(2) >= 60000 && gap(2) <= 60020);
-  }
-  std::puts("PASS websocket reconnect pacing, lifecycle and 32-bit rollover");
+  assert(startup.size()>1000 && capped.size()>800);
+  std::puts("PASS exponential jitter, failure paths, stable reset, reentrancy, fleet and rollover");
 }

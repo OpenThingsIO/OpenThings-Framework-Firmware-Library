@@ -1,6 +1,8 @@
 #ifndef WEBSOCKET_H
 #define WEBSOCKET_H
 
+#include "ReconnectPolicy.h"
+
 #if defined(ARDUINO)
 #include <Arduino.h>
 #include <WebSocketsClient.h>
@@ -109,7 +111,7 @@ public:
    * 
    */
   void close(bool reconnect = false) {
-    (void)reconnect; // Arduino reconnects automatically after disconnect().
+    enableReconnect = reconnect;
     WS_DEBUG("Closing connection\n");
     WebSocketsClient::disconnect();
   }
@@ -194,9 +196,10 @@ public:
 
 private:
   bool enableReconnect = false;
-  uint32_t reconnectInterval = 0;
-  uint32_t reconnectDelay = 0;
-  uint32_t reconnectLastAttempt = 0;
+  uint32_t reconnectInterval = 5000;
+  ReconnectPolicy retry;
+  bool attemptActive = false;
+  bool polling = false;
 
   WSInterfaceString host;
   int port;
@@ -205,6 +208,13 @@ private:
   WebSocketEventCallback eventCallback = nullptr;
 
   void _callback(WSEvent_t type, uint8_t * payload, size_t length) {
+    // arduinoWebSockets supplies these explicit HTTP rejection reasons. A 404
+    // or generic disconnect is not evidence of an invalid token.
+    if (type == WSEvent_DISCONNECTED && payload && length == 8 &&
+        (!memcmp(payload, "HTTP 401", 8) || !memcmp(payload, "HTTP 403", 8))) retry.rejected();
+    if (type == WSEvent_CONNECTED) retry.opened(millis());
+    if (type == WSEvent_PONG || type == WSEvent_PING ||
+        type == WSEvent_TEXT || type == WSEvent_BIN) retry.received(millis());
     if (eventCallback) {
       eventCallback(type, payload, length);
     }
@@ -390,8 +400,10 @@ private:
   bool heartbeatInProgress = false;
   bool heartbeatEnabled = false;
 
-  uint32_t reconnectInterval = 500;
-  uint32_t reconnectLastAttempt = 0;
+  uint32_t reconnectInterval = 5000;
+  ReconnectPolicy retry;
+  bool attemptActive = false;
+  bool polling = false;
   bool shouldReconnect = false;
 
   WSInterfaceString host;
@@ -401,6 +413,12 @@ private:
   WebSocketEventCallback eventCallback = nullptr;
 
   void _callback(WSEvent_t type, uint8_t * payload, size_t length) {
+    if (type == WSEvent_CONNECTED) {
+      retry.opened(millis());
+      heartbeatLastSent = millis();
+    }
+    if (type == WSEvent_PONG || type == WSEvent_PING ||
+        type == WSEvent_TEXT || type == WSEvent_BIN) retry.received(millis());
     if (eventCallback) {
       eventCallback(type, payload, length);
     }

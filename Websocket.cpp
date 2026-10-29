@@ -1,5 +1,35 @@
 #include "Websocket.h"
 
+#if defined(ESP32)
+#include <esp_random.h>
+#elif !defined(ARDUINO)
+#include <sys/random.h>
+#include <time.h>
+#include <unistd.h>
+#endif
+
+namespace {
+uint32_t reconnectSeed() {
+#if defined(ESP8266)
+  return uint32_t(secureRandom(0x7fffffffL)) ^ (uint32_t(secureRandom(0x7fffffffL)) << 1) ^ ESP.getChipId();
+#elif defined(ESP32)
+  const uint64_t mac = ESP.getEfuseMac();
+  return esp_random() ^ uint32_t(mac) ^ uint32_t(mac >> 32);
+#else
+  uint32_t seed;
+  if (getrandom(&seed, sizeof(seed), GRND_NONBLOCK) == sizeof(seed)) return seed;
+  struct timespec ts;
+  clock_gettime(CLOCK_MONOTONIC, &ts);
+  return uint32_t(ts.tv_nsec) ^ uint32_t(ts.tv_sec) ^ uint32_t(getpid());
+#endif
+}
+struct PollGuard {
+  bool &flag;
+  explicit PollGuard(bool &value) : flag(value) { flag = true; }
+  ~PollGuard() { flag = false; }
+};
+}
+
 #if defined(ARDUINO)
 void WebsocketClient::enableHeartbeat(uint32_t interval, uint32_t timeout, uint8_t maxMissed) {
   WebSocketsClient::enableHeartbeat(interval, timeout, maxMissed);
@@ -11,10 +41,9 @@ void WebsocketClient::disableHeartbeat() {
 
 void WebsocketClient::setReconnectInterval(uint32_t interval) {
   reconnectInterval = interval;
-  reconnectDelay = interval;
-  reconnectLastAttempt = millis()-interval;
-  // Keep a library-level floor for reconnects started inside its loop().
-  WebSocketsClient::setReconnectInterval(interval);
+  retry.configure(millis(), reconnectSeed(), interval);
+  // Only poll() may authorize a new attempt, never the transport's inner loop.
+  WebSocketsClient::setReconnectInterval(UINT32_MAX);
 }
 
 void WebsocketClient::resetStreaming() {
@@ -22,39 +51,30 @@ void WebsocketClient::resetStreaming() {
 }
 
 void WebsocketClient::poll() {
+  if (polling) return;
+  PollGuard guard(polling);
+  clientIsConnected(&_client);
   if (_client.status == WSC_NOT_CONNECTED) {
-    // Clean up a retained failed socket before checking the retry clock.
-    clientIsConnected(&_client);
-    uint32_t now = millis();
-    if (now-reconnectLastAttempt < reconnectDelay) {
-      return;
+    if (attemptActive) {
+      attemptActive = false;
+      retry.failed(millis());
     }
-    // A library-throttled poll is not a failed connection attempt.
-    if ((uint32_t)(now-_lastConnectionFail) < _reconnectInterval) {
-      return;
-    }
-
-    reconnectLastAttempt = now;
+    if (!enableReconnect || !retry.ready(millis())) return;
+    attemptActive = true;
+    WebSocketsClient::setReconnectInterval(0);
     WebSocketsClient::loop();
-    if (_client.status == WSC_NOT_CONNECTED) {
-      if (reconnectDelay < 15000) {
-        reconnectDelay = 15000;
-      } else if (reconnectDelay < 60000) {
-        reconnectDelay = 60000;
-      } else if (reconnectDelay < 300000) {
-        reconnectDelay = 300000;
-      }
-    }
-    return;
+    WebSocketsClient::setReconnectInterval(UINT32_MAX);
+  } else {
+    // If TCP dies between our check and loop(), its reconnect path stays gated.
+    _lastConnectionFail = millis();
+    WebSocketsClient::loop();
   }
-
-  WebSocketsClient::loop();
-  if (_client.status == WSC_CONNECTED) {
-    reconnectDelay = reconnectInterval;
-  } else if (_client.status == WSC_NOT_CONNECTED) {
-    reconnectDelay = reconnectInterval;
-    reconnectLastAttempt = millis();
+  clientIsConnected(&_client); // Free failed sockets before starting the delay.
+  if (_client.status == WSC_NOT_CONNECTED && attemptActive) {
+    attemptActive = false;
+    retry.failed(millis());
   }
+  if (_client.status == WSC_CONNECTED) retry.update(millis());
 }
 
 void WebsocketClient::onEvent(WebSocketEventCallback callback) {
@@ -64,11 +84,19 @@ void WebsocketClient::onEvent(WebSocketEventCallback callback) {
 
 void WebsocketClient::connect(WSInterfaceString host, int port, WSInterfaceString path) {
   WS_DEBUG("Connecting to ws://%s:%d%s\n", host.c_str(), port, path.c_str());
+  close(false);
   WebSocketsClient::begin(host, port, path);
+  enableReconnect = true;
+  attemptActive = false;
+  setReconnectInterval(reconnectInterval);
 }
 
 void WebsocketClient::connectSecure(WSInterfaceString host, int port, WSInterfaceString path) {
+  close(false);
   WebSocketsClient::beginSSL(host.c_str(), port, path.c_str());
+  enableReconnect = true;
+  attemptActive = false;
+  setReconnectInterval(reconnectInterval);
 }
 
 bool WebsocketClient::stream() {
@@ -135,36 +163,34 @@ void WebsocketClient::disableHeartbeat() {
 
 void WebsocketClient::setReconnectInterval(uint32_t interval) {
     reconnectInterval = interval;
+    retry.configure(millis(), reconnectSeed(), interval);
 }
 
 void WebsocketClient::resetStreaming() {
     isStreaming = false;
 }
 
-// Arduino-compatible millis() for non-Arduino targets: ms since first call,
-// returned as uint32_t so it matches Arduino's 32-bit wrap semantics
-// (every ~49 days). OTF carries its own epoch state so the library stays
-// standalone.
+// Monotonic time with Arduino's 32-bit wrap semantics; wall-clock corrections
+// must not change retry or heartbeat deadlines.
 uint32_t millis() {
-	static uint64_t epoch_ms = 0;
-	struct timeval tv;
-	gettimeofday(&tv, NULL);
-	uint64_t now = (uint64_t)tv.tv_sec * (uint64_t)1000 + (uint64_t)(tv.tv_usec / 1000);
-	if (epoch_ms == 0) epoch_ms = now;
-	return (uint32_t)(now - epoch_ms);
+  struct timespec ts;
+  clock_gettime(CLOCK_MONOTONIC, &ts);
+  return uint32_t(uint64_t(ts.tv_sec) * 1000 + ts.tv_nsec / 1000000);
 }
 
 
 void WebsocketClient::poll() {
+  if (polling) return;
+  PollGuard guard(polling);
   websockets::WebsocketsClient::poll();
   if (heartbeatEnabled && available()) {
     if (!heartbeatInProgress && (millis() - heartbeatLastSent > heartbeatInterval)) {
       if (heartbeatMissed >= heartbeatMaxMissed) {
         // Too many missed heartbeats, close the connection
         WS_DEBUG("Too many missed heartbeats, closing connection\n");
-        reconnectLastAttempt = 0;
         heartbeatMissed = 0;
         websockets::WebsocketsClient::close();
+        heartbeatInProgress = false;
         return;
       }
 
@@ -183,15 +209,19 @@ void WebsocketClient::poll() {
     }
   }
 
-  if (shouldReconnect && !available()) {
-    if (millis() - reconnectLastAttempt > reconnectInterval) {
-      WS_DEBUG("Reconnecting...\n");
-      // Attempt to reconnect
-        websockets::WebsocketsClient::connect(host, port, path);
-
-      WS_DEBUG("Reconnect attempt complete\n");
-      WS_DEBUG("Connection status: %d\n", websockets::WebsocketsClient::available());
-      reconnectLastAttempt = millis();
+  if (available()) {
+    retry.update(millis());
+    return;
+  }
+  if (attemptActive) {
+    attemptActive = false;
+    retry.failed(millis());
+  }
+  if (shouldReconnect && retry.ready(millis())) {
+    attemptActive = true;
+    if (!websockets::WebsocketsClient::connect(host, port, path)) {
+      attemptActive = false;
+      retry.failed(millis());
     }
   }
 }
@@ -203,6 +233,7 @@ void WebsocketClient::onEvent(WebSocketEventCallback callback) {
 
 void WebsocketClient::connect(WSInterfaceString host, int port, WSInterfaceString path) {
   WS_DEBUG("Connecting to ws://%s:%d%s\n", host.c_str(), port, path.c_str());
+  close(false);
   this->host = host;
   this->port = port;
   this->path = path;
@@ -210,7 +241,8 @@ void WebsocketClient::connect(WSInterfaceString host, int port, WSInterfaceStrin
   heartbeatMissed = 0;
   heartbeatInProgress = false;
 //   isSecure = false;
-  websockets::WebsocketsClient::connect(host, port, path);
+  attemptActive = false;
+  setReconnectInterval(reconnectInterval);
 }
 
 // void WebsocketClient::connectSecure(WSInterfaceString host, int port, WSInterfaceString path) {

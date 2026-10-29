@@ -22,6 +22,14 @@ using std::min;
 #define memcpy_P memcpy
 
 uint32_t millis();
+long secureRandom(long maximum);
+struct FakeESP {
+  uint32_t chipId = 0x123456;
+  uint64_t mac = 0xaabbcc123456ULL;
+  uint32_t getChipId() const { return chipId; }
+  uint64_t getEfuseMac() const { return mac; }
+};
+extern FakeESP ESP;
 inline void delay(unsigned long) {}
 
 #endif

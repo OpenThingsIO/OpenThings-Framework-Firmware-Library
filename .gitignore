@@ -14,3 +14,4 @@ OTF-Controller-Library/example/config.h
 /test/test_cloud_dispatch_linux
 /test/test_websocket_reconnect
 /test/test_websocket_reconnect_esp32
+/test/test_reconnect_loopback
