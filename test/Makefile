@@ -4,12 +4,46 @@ SANITIZER_FLAGS ?= -fsanitize=address,undefined -fno-omit-frame-pointer
 
 .PHONY: test clean
 
-test: test_http_parser test_etherport test_forwarded_request test_request test_string_builder
+.PHONY: test-reconnect-loopback
+test-reconnect-loopback: test_reconnect_loopback
+	python3 test_reconnect_loopback.py ./test_reconnect_loopback
+
+test_reconnect_loopback: test_reconnect_loopback.cpp ../Websocket.cpp ../Websocket.h ../ReconnectPolicy.h
+	$(CXX) -std=c++14 -O2 -include cstdint -include string.h -I.. \
+		-I../../TinyWebsockets/tiny_websockets_lib/include \
+		test_reconnect_loopback.cpp ../Websocket.cpp \
+		../../TinyWebsockets/tiny_websockets_lib/src/*.cpp -lssl -lcrypto -o $@
+
+test: test_http_parser test_etherport test_forwarded_request test_request test_string_builder test_cloud_dispatch_arduino test_cloud_dispatch_linux test_websocket_reconnect test_websocket_reconnect_esp32
 	./test_http_parser
 	ASAN_OPTIONS=detect_leaks=0 ./test_etherport
 	ASAN_OPTIONS=detect_leaks=0 ./test_forwarded_request
 	ASAN_OPTIONS=detect_leaks=0 ./test_request
 	ASAN_OPTIONS=detect_leaks=0:allocator_may_return_null=1 ./test_string_builder
+	ASAN_OPTIONS=detect_leaks=1 ./test_cloud_dispatch_arduino
+	ASAN_OPTIONS=detect_leaks=1 ./test_cloud_dispatch_linux
+	ASAN_OPTIONS=detect_leaks=1 ./test_websocket_reconnect
+	ASAN_OPTIONS=detect_leaks=1 ./test_websocket_reconnect_esp32
+
+test_websocket_reconnect: test_websocket_reconnect.cpp fakes/reconnect/WebSocketsClient.h fakes/Arduino.h ../Websocket.cpp ../Websocket.h ../ReconnectPolicy.h
+	$(CXX) $(CXXFLAGS) $(SANITIZER_FLAGS) -Ifakes/reconnect -Ifakes -DARDUINO=10800 -DESP8266 \
+		test_websocket_reconnect.cpp ../Websocket.cpp -o $@
+
+test_websocket_reconnect_esp32: test_websocket_reconnect.cpp fakes/reconnect/WebSocketsClient.h fakes/Arduino.h ../Websocket.cpp ../Websocket.h ../ReconnectPolicy.h
+	$(CXX) $(CXXFLAGS) $(SANITIZER_FLAGS) -Ifakes/reconnect -Ifakes -DARDUINO=10800 -DESP32 \
+		test_websocket_reconnect.cpp ../Websocket.cpp -o $@
+
+CLOUD_SOURCES = test_cloud_dispatch.cpp ../OpenThingsFramework.cpp ../ForwardedRequest.cpp \
+	../Request.cpp ../Response.cpp ../StringBuilder.cpp ../HttpParser.cpp
+CLOUD_HEADERS = fakes/cloud_transport.h fakes/Arduino.h $(wildcard ../*.h ../*.hpp)
+
+test_cloud_dispatch_arduino: $(CLOUD_SOURCES) $(CLOUD_HEADERS)
+	$(CXX) $(CXXFLAGS) -Wno-unused-parameter $(SANITIZER_FLAGS) -Ifakes -DARDUINO=10800 -DESP8266 \
+		-include fakes/cloud_transport.h $(CLOUD_SOURCES) -Wl,--wrap=malloc -o $@
+
+test_cloud_dispatch_linux: $(CLOUD_SOURCES) $(CLOUD_HEADERS)
+	$(CXX) $(CXXFLAGS) -Wno-unused-parameter $(SANITIZER_FLAGS) -include fakes/cloud_transport.h \
+		$(CLOUD_SOURCES) -Wl,--wrap=malloc -o $@
 
 test_http_parser: test_http_parser.cpp ../HttpParser.cpp ../HttpParser.h
 	$(CXX) $(CXXFLAGS) test_http_parser.cpp ../HttpParser.cpp -o $@
@@ -32,4 +66,6 @@ test_string_builder: test_string_builder.cpp ../StringBuilder.cpp ../StringBuild
 		../StringBuilder.cpp -o $@
 
 clean:
-	rm -f test_http_parser test_etherport test_forwarded_request test_request test_string_builder
+	rm -f test_reconnect_loopback
+	rm -f test_http_parser test_etherport test_forwarded_request test_request test_string_builder \
+		test_cloud_dispatch_arduino test_cloud_dispatch_linux test_websocket_reconnect test_websocket_reconnect_esp32

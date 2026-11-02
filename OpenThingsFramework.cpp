@@ -54,6 +54,9 @@ OpenThingsFramework::OpenThingsFramework(uint16_t webServerPort, char *hdBuffer,
 
 OpenThingsFramework::~OpenThingsFramework() {
   delete webSocket;
+#if defined(ARDUINO)
+  clearPendingCloudRequest();
+#endif
   if (ownsHeaderBuffer) {
     delete[] headerBuffer;
   }
@@ -121,6 +124,7 @@ void OpenThingsFramework::on(const __FlashStringHelper *path, callback_t callbac
 void OpenThingsFramework::onMissingPage(callback_t callback) {
   missingPageCallback = callback;
 }
+
 
 bool OpenThingsFramework::localServerLoop() {
 
@@ -329,15 +333,51 @@ bool OpenThingsFramework::localServerLoop() {
 }
 
 void OpenThingsFramework::loop(bool allowCloud) {
+  if (processingCloud) return;
   bool localClientActive = localServerLoop();
   if (!localClientActive && allowCloud && webSocket != nullptr) {
     webSocket->poll();
+#if defined(ARDUINO)
+    if (pendingCloudData && !closeCloud) {
+      uint8_t *data = pendingCloudData;
+      size_t length = pendingCloudLength;
+      uint32_t generation = pendingCloudGeneration;
+      pendingCloudData = nullptr;
+      pendingCloudLength = 0;
+      if (generation == cloudGeneration && cloudStatus == CONNECTED) {
+        processingCloud = true;
+        handleCloudMessage(data, length);
+        processingCloud = false;
+      }
+      free(data);
+    }
+#endif
+    if (closeCloud) {
+#if defined(ARDUINO)
+      clearPendingCloudRequest();
+#endif
+      closeCloud = false;
+      webSocket->close(true);
+    }
   }
 }
+
+#if defined(ARDUINO)
+void OpenThingsFramework::clearPendingCloudRequest() {
+  free(pendingCloudData);
+  pendingCloudData = nullptr;
+  pendingCloudLength = 0;
+}
+#endif
 
 void OpenThingsFramework::webSocketEventCallback(WSEvent_t type, uint8_t *payload, size_t length) {
   switch (type) {
     case WSEvent_DISCONNECTED: {
+      ++cloudGeneration;
+      closeCloud = false;
+#if defined(ARDUINO)
+      clearPendingCloudRequest();
+#endif
       OTF_DEBUG(F("Websocket connection closed\n"));
       if (cloudStatus == CONNECTED) {
         // Make sure the cloud status is only set to disconnected if it was previously connected.
@@ -351,6 +391,11 @@ void OpenThingsFramework::webSocketEventCallback(WSEvent_t type, uint8_t *payloa
     }
 
     case WSEvent_CONNECTED: {
+      ++cloudGeneration;
+      closeCloud = false;
+#if defined(ARDUINO)
+      clearPendingCloudRequest();
+#endif
       OTF_DEBUG(F("Websocket connection opened\n"));
       setCloudStatus(CONNECTED);
       this->webSocket->resetStreaming();
@@ -368,49 +413,32 @@ void OpenThingsFramework::webSocketEventCallback(WSEvent_t type, uint8_t *payloa
     }
 
     case WSEvent_TEXT: {
-      ForwardedRequest forwarded;
-      if (parseForwardedRequest(payload, length, forwarded)) {
-        OTF_DEBUG(F("Message is a forwarded request.\n"));
-        Request request(forwarded.requestData, forwarded.requestLength, true);
-        Response res = Response();
-        // Make response stream to websocket
-        res.enableStream([this] (const char *buffer, size_t length, bool first_message) -> void {
-          // If the websocket is not already streaming, start streaming.
-          if (first_message) {
-            WS_DEBUG("Starting stream\n");
-            webSocket->stream();
-          }
-
-          // Send the buffer to the websocket stream.
-          webSocket->send(buffer, length);
-        }, [this] () -> void {
-          // Flush the websocket stream.
-          webSocket->send("", 0);
-        }, [this] () -> void {
-          // End the websocket stream.
-          webSocket->end();
-        });
-
-        res.bprintf(F("RES: %s\r\n"), forwarded.requestId);
-        fillResponse(request, res);
-        // Make sure to end the stream if it was enabled.
-        res.end();
-
-        if (res.isValid()) {
-          OTF_DEBUG("Sent response, %d bytes\n", res.getTotalLength());
-        } else {
-          OTF_DEBUG(F("An error occurred building response string\n"));
-          StringBuilder builder(100);
-          builder.bprintf(F("RES: %s\r\n%s"), forwarded.requestId,
-                          F("HTTP/1.1 500 Internal Error\r\n\r\nAn internal error occurred"));
-          if (!builder.isValid()) {
-            OTF_DEBUG(F("Builder is not valid\n"));
-            return;
-          }
-        }
-      } else {
-        OTF_DEBUG(F("Websocket message does not start with the correct prefix.\n"));
+      if (closeCloud || !validateForwardedRequest(payload, length)) break;
+#if defined(ARDUINO)
+      if (webSocket->isStreamOpen()) {
+        closeCloud = true;
+        break;
       }
+      // arduinoWebSockets delivers one frame per poll. Never run a handler
+      // beneath its recursive parser, even if the temporary copy cannot fit.
+      if (pendingCloudData || length > WEBSOCKETS_MAX_DATA_SIZE) {
+        sendCloudError(reinterpret_cast<const char *>(payload) + sizeof("FWD: ") - 1, 503);
+        break;
+      }
+      pendingCloudData = static_cast<uint8_t *>(malloc(length + 1));
+      if (!pendingCloudData) {
+        sendCloudError(reinterpret_cast<const char *>(payload) + sizeof("FWD: ") - 1, 503);
+        break;
+      }
+      memcpy(pendingCloudData, payload, length);
+      pendingCloudData[length] = '\0';
+      pendingCloudLength = length;
+      pendingCloudGeneration = cloudGeneration;
+#else
+      processingCloud = true;
+      handleCloudMessage(payload, length);
+      processingCloud = false;
+#endif
       break;
     }
     
@@ -419,6 +447,94 @@ void OpenThingsFramework::webSocketEventCallback(WSEvent_t type, uint8_t *payloa
       break;
     }
   }
+}
+
+void OpenThingsFramework::sendCloudError(const char *requestId, uint16_t status) {
+  if (closeCloud || cloudStatus != CONNECTED) return;
+#if defined(ARDUINO)
+  if (webSocket->isStreamOpen()) {
+    closeCloud = true;
+    return;
+  }
+#endif
+  char message[96];
+  uint32_t generation = cloudGeneration;
+  int length = snprintf(message, sizeof(message),
+                        "RES: %.4s\r\nHTTP/1.1 %s\r\nContent-Length: 0\r\n\r\n",
+                        requestId, status == 503 ? "503 Service Unavailable" : "500 Internal Server Error");
+  if (length <= 0 || static_cast<size_t>(length) >= sizeof(message) ||
+      !webSocket->send(message, static_cast<size_t>(length))) {
+    if (generation == cloudGeneration) closeCloud = true;
+  }
+}
+
+void OpenThingsFramework::handleCloudMessage(uint8_t *payload, size_t length) {
+  ForwardedRequest forwarded;
+  if (!parseForwardedRequest(payload, length, forwarded)) return;
+
+  struct {
+    uint32_t generation;
+    bool started;
+    bool failed;
+  } state = {cloudGeneration, false, false};
+  Request request(forwarded.requestData, forwarded.requestLength, true);
+  Response res;
+  res.enableStream([this, &state](const char *buffer, size_t size, bool first) {
+    if (state.failed || state.generation != cloudGeneration || cloudStatus != CONNECTED) return;
+    state.started = true;
+#if defined(ARDUINO)
+    if (first && !webSocket->stream()) {
+      state.failed = true;
+      if (state.generation == cloudGeneration) closeCloud = true;
+      return;
+    }
+#else
+    // Keep TinyWebsockets' existing inline stream behavior on Linux.
+    if (first) webSocket->stream();
+#endif
+    // Starting a stream can yield and report a connection change.
+    if (state.generation != cloudGeneration || cloudStatus != CONNECTED) return;
+    if (!webSocket->send(buffer, size)) {
+#if defined(ARDUINO)
+      state.failed = true;
+      if (state.generation == cloudGeneration) closeCloud = true;
+#endif
+    }
+  }, [this, &state]() {
+    if (!state.failed && state.generation == cloudGeneration && cloudStatus == CONNECTED &&
+        !webSocket->send("", 0)) {
+#if defined(ARDUINO)
+      state.failed = true;
+      if (state.generation == cloudGeneration) closeCloud = true;
+#endif
+    }
+  }, [this, &state]() {
+#if defined(ARDUINO)
+    if (!state.failed && state.generation == cloudGeneration && cloudStatus == CONNECTED &&
+        webSocket->isStreamOpen() && !webSocket->end()) {
+      state.failed = true;
+      if (state.generation == cloudGeneration) closeCloud = true;
+    }
+#else
+    if (state.generation == cloudGeneration && cloudStatus == CONNECTED) webSocket->end();
+#endif
+  });
+
+  res.bprintf(F("RES: %s\r\n"), forwarded.requestId);
+  fillResponse(request, res);
+  if (state.generation != cloudGeneration || cloudStatus != CONNECTED) return;
+  if (!res.isValid()) {
+    // end() flushes even invalid buffers. Do not send corrupt data, or a
+    // second response after streaming has already started.
+    if (!state.started) sendCloudError(forwarded.requestId, 500);
+#if defined(ARDUINO)
+    else closeCloud = true;
+#else
+    else webSocket->end();
+#endif
+    return;
+  }
+  res.end();
 }
 
 void OpenThingsFramework::fillResponse(const Request &req, Response &res) {

@@ -65,8 +65,20 @@ namespace OTF {
     char *headerBuffer = NULL;
     size_t headerBufferSize = 0;
     bool ownsHeaderBuffer = false;
+    uint32_t cloudGeneration = 0;
+    bool processingCloud = false;
+    bool closeCloud = false;
+#if defined(ARDUINO)
+    uint8_t *pendingCloudData = nullptr;
+    size_t pendingCloudLength = 0;
+    uint32_t pendingCloudGeneration = 0;
+    void clearPendingCloudRequest();
+#endif
 
     void webSocketEventCallback(WSEvent_t type, uint8_t *payload, size_t length);
+    // Keep request/response frames out of loop(), including its local HTTP path.
+    void handleCloudMessage(uint8_t *payload, size_t length) __attribute__((noinline));
+    void sendCloudError(const char *requestId, uint16_t status) __attribute__((noinline));
 
     void fillResponse(const Request &req, Response &res);
     bool localServerLoop();
@@ -132,6 +144,8 @@ namespace OTF {
     /**
      * Services local HTTP requests and, when allowed, the cloud websocket.
      * Local requests take priority over cloud polling.
+     * Arduino cloud handlers run after the websocket parser returns; Linux
+     * handles messages inline because its poll drains multiple messages.
      *
      * @param allowCloud false to skip cloud connection attempts while the
      * local network link is unavailable.

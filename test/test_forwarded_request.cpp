@@ -23,6 +23,7 @@ public:
 } // namespace OTF
 
 static void expectInvalid(uint8_t *payload, size_t length) {
+  assert(!validateForwardedRequest(payload, length));
   ForwardedRequest request;
   request.requestId = reinterpret_cast<char *>(1);
   request.requestData = reinterpret_cast<char *>(1);
@@ -59,6 +60,8 @@ int main() {
   uint8_t valid[] =
     "FWD: z9-!\r\nPOST /test HTTP/1.1\r\nContent-Length: 4\r\n\r\ndata";
   const size_t frameLength = sizeof(valid) - 1;
+  assert(validateForwardedRequest(valid, frameLength));
+  assert(valid[9] == '\r'); // Validation must not mutate the callback buffer.
   ForwardedRequest request;
   assert(parseForwardedRequest(valid, frameLength, request));
   assert(strcmp(request.requestId, "z9-!") == 0);
