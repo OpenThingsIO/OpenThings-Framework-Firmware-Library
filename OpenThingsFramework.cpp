@@ -1,4 +1,5 @@
 #include "OpenThingsFramework.h"
+#include <string.h>
 #include <new>
 #include "StringBuilder.hpp"
 #include <string>
@@ -119,11 +120,28 @@ void OpenThingsFramework::onMissingPage(callback_t callback) {
   missingPageCallback = callback;
 }
 
+/* Optional profiling hook. The application may define
+ *   extern "C" void otf_prof_hook(uint8_t phase, uint32_t ms, const char *path);
+ * to receive the duration of each phase (OTF_PROF_* below). Weak and unset by
+ * default, so the library costs nothing extra without it. path is the request
+ * path for OTF_PROF_HANDLER, otherwise NULL. */
+extern "C" void otf_prof_hook(uint8_t phase, uint32_t ms, const char *path) __attribute__((weak));
+#define OTF_PROF_ACCEPT  0  // acceptClient() (HTTPS: TLS handshake)
+#define OTF_PROF_HEADER  1  // reading request line + headers
+#define OTF_PROF_BODY    2  // reading the body
+#define OTF_PROF_HANDLER 3  // fillResponse() + res.end()
+#define OTF_PROF_CLOSE   4  // flush + stop
+#define OTF_PROF_WS      5  // websocket poll (cloud requests included)
+#define OTF_PROF_IDLE    6  // client connected but sent nothing until the timeout
+#define OTF_PROF(ph, t0, path) do { if (otf_prof_hook) otf_prof_hook((ph), (uint32_t)(millis() - (t0)), (path)); } while (0)
+
 void OpenThingsFramework::localServerLoop() {
 
   static unsigned long wait_to = 0; // timeout to wait for client data
   if (!wait_to) {
+    unsigned long prof_t0 = millis();
     localClient = localServer.acceptClient();
+    OTF_PROF(OTF_PROF_ACCEPT, prof_t0, nullptr);
     // If a client wasn't available from the server, exit the local server loop.
     if (!localClient) {
       return;
@@ -134,7 +152,10 @@ void OpenThingsFramework::localServerLoop() {
   if (!localClient->dataAvailable()) {
     // If data isn't available from the client yet, exit the local server loop and check again next iteration.
     // but if we reached timeout, then reset wait_to to 0 and flush localClient so we can accept new client
-    if(millis()>wait_to) {
+    // also drop a peer that closed without sending anything (spare browser connection),
+    // otherwise it holds the single client slot for the whole timeout
+    if(millis()>wait_to || !localClient->connected()) {
+      OTF_PROF(OTF_PROF_IDLE, wait_to - WIFI_CONNECTION_TIMEOUT, nullptr);
       wait_to=0;
       localClient->flush();
       localClient->stop();
@@ -156,6 +177,7 @@ void OpenThingsFramework::localServerLoop() {
 
   char *buffer = headerBuffer;
   size_t length = 0;
+  unsigned long prof_t0 = millis();
   while (millis() < timeout) {
     if (length >= (size_t)headerBufferSize - 1) {
       localClient->print(F("HTTP/1.1 413 Request too large\r\n\r\nThe request was too large"));
@@ -166,8 +188,12 @@ void OpenThingsFramework::localServerLoop() {
     }
 
     // `dataAvailable()` can temporarily return false between TCP packets.
-    // Keep waiting (up to WIFI_CONNECTION_TIMEOUT) until the full header terminator is received.
+    // Keep waiting (up to WIFI_CONNECTION_TIMEOUT) until the full header terminator is received,
+    // but not for a peer that is gone: browsers open spare (TLS) connections and close them
+    // unused; the close_notify / FIN made dataAvailable() true once and the loop then blocked
+    // the whole main loop for the full timeout.
     if (!localClient->dataAvailable()) {
+      if (!localClient->connected()) break;
       #if defined(ARDUINO)
       delay(1);
       #endif
@@ -184,6 +210,7 @@ void OpenThingsFramework::localServerLoop() {
 
     size_t read = localClient->readBytesUntil('\n', &buffer[length], size);
     if (read == 0) {
+      if (!localClient->connected()) break;  // see above
       continue;
     }
 
@@ -202,8 +229,24 @@ void OpenThingsFramework::localServerLoop() {
       }
     }
   }
+  if (otf_prof_hook) {
+    // remote address as "path" so slow clients can be identified (IPv4, lwIP byte order)
+    uint32_t ip = localClient->remoteIP();
+    char ipbuf[16];
+    snprintf(ipbuf, sizeof(ipbuf), "%u.%u.%u.%u", (unsigned)(ip & 0xFF), (unsigned)((ip >> 8) & 0xFF),
+             (unsigned)((ip >> 16) & 0xFF), (unsigned)(ip >> 24));
+    otf_prof_hook(OTF_PROF_HEADER, (uint32_t)(millis() - prof_t0), ipbuf);
+  }
   OTF_DEBUG((char *) F("Finished reading data from client. Request line + headers were %d bytes\n"), length);
   buffer[length] = 0;
+
+  // Peer closed before sending a complete request: nothing to answer.
+  if (!localClient->connected() && (length < 4 || strncmp_P(&buffer[length - 4], (char *) F("\r\n\r\n"), 4) != 0)) {
+    OTF_DEBUG(F("Client closed before the request was complete\n"));
+    localClient->stop();
+    localClient = nullptr;
+    return;
+  }
 
   // Make sure that the headers were fully read into the buffer.
   if (length < 4 || strncmp_P(&buffer[length - 4], (char *) F("\r\n\r\n"), 4) != 0) {
@@ -241,6 +284,7 @@ void OpenThingsFramework::localServerLoop() {
           return;
         }
         size_t bodyLength = 0;
+        prof_t0 = millis();
         timeout = millis()+WIFI_CONNECTION_TIMEOUT;
         while (localClient->dataAvailable() && millis()<timeout) {
           size_t size = 
@@ -254,6 +298,7 @@ void OpenThingsFramework::localServerLoop() {
           bodyLength += read;
         }
         bodyBuffer[bodyLength] = 0;
+        OTF_PROF(OTF_PROF_BODY, prof_t0, nullptr);
         request.body = bodyBuffer;
         request.bodyLength = bodyLength;
       }
@@ -271,11 +316,18 @@ void OpenThingsFramework::localServerLoop() {
   }, [this]() -> void {
     localClient->flush();
   });
+  char prof_path[24] = "";
+  if (otf_prof_hook && request.getPath()) {
+    strncpy(prof_path, request.getPath(), sizeof(prof_path) - 1);  // handlers may reuse the buffer
+    prof_path[sizeof(prof_path) - 1] = 0;
+  }
+  prof_t0 = millis();
   fillResponse(request, res);
 
   OTF_DEBUG(F("Before res.end(): valid=%d, length=%d\n"), res.isValid(), res.getTotalLength());
   // Make sure to end the stream if it was enabled.
   res.end();
+  OTF_PROF(OTF_PROF_HANDLER, prof_t0, prof_path);
   OTF_DEBUG(F("After res.end(): valid=%d, length=%d\n"), res.isValid(), res.getTotalLength());
 
   if(bodyBuffer) delete[] bodyBuffer;
@@ -287,9 +339,11 @@ void OpenThingsFramework::localServerLoop() {
   }
 
   // Properly close the client connection.
+  prof_t0 = millis();
   localClient->flush();
   localClient->stop();
   localClient = nullptr;
+  OTF_PROF(OTF_PROF_CLOSE, prof_t0, nullptr);
 
   // localClient is now null — next loop iteration will accept a new one
   OTF_DEBUG(F("Finished handling request\n"));
@@ -298,7 +352,9 @@ void OpenThingsFramework::localServerLoop() {
 void OpenThingsFramework::loop() {
   localServerLoop();
   if (webSocket != nullptr) {
+    unsigned long prof_t0 = millis();
     webSocket->poll();
+    OTF_PROF(OTF_PROF_WS, prof_t0, nullptr);
   }
 }
 
