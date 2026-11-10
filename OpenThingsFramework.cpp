@@ -193,8 +193,11 @@ bool OpenThingsFramework::localServerLoop() {
     // Check for empty line (end of headers)
     if (lineLen == 1 && line[0] == '\r') break;
 
-    // Selective headers to keep
-    if (strncasecmp(line, "content-length:", 15) == 0) {
+    // Selective headers to keep. If-None-Match lets the application answer a
+    // cache revalidation with 304; keep it only when the whole line fit, so a
+    // truncated value is never matched.
+    if (strncasecmp(line, "content-length:", 15) == 0 ||
+        (strncasecmp(line, "if-none-match:", 14) == 0 && line[lineLen-1] == '\r')) {
       if (length + lineLen + 1 < headerBufferSize - 4) {
         memcpy(&buffer[length], line, lineLen);
         length += lineLen;
