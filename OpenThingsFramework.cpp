@@ -36,6 +36,44 @@ static void waitForRequestData() {
 #endif
 }
 
+/* Reads one physical line through its '\n', which is consumed but not stored.
+ * At most cap-1 bytes are kept, NUL-terminated; `overflow` reports a longer line,
+ * whose remainder is consumed and discarded so it can never be parsed as another
+ * line. Returns false if the deadline passes before the '\n' arrives. */
+static bool readRequestLine(LocalClient *client, char *buf, size_t cap, size_t &len, bool &overflow,
+                            uint32_t start) {
+  len = 0;
+  overflow = false;
+  buf[0] = 0;
+  for (;;) {
+    char c;
+    if (client->availableBytes() == 0 || client->readBytes(&c, 1) != 1) {
+      if (millis() - start >= WIFI_CONNECTION_TIMEOUT) {
+        buf[len] = 0;
+        return false;
+      }
+      waitForRequestData();
+      continue;
+    }
+    if (c == '\n') {
+      buf[len] = 0;
+      return true;
+    }
+    if (len + 1 < cap) buf[len++] = c;
+    else overflow = true;
+  }
+}
+
+static bool isKeptHeader(const char *line, size_t len) {
+  // `line` is NUL-terminated, so a short line ends the comparison safely.
+  static const char *const kept[] = {"content-length:", "if-none-match:"};
+  for (const char *name : kept) {
+    const size_t n = strlen(name);
+    if (len >= n && strncasecmp(line, name, n) == 0) return true;
+  }
+  return false;
+}
+
 OpenThingsFramework::OpenThingsFramework(uint16_t webServerPort, char *hdBuffer, int hdBufferSize) : localServer(webServerPort) {
   OTF_DEBUG("Instantiating OTF...\n");
   if(hdBuffer != NULL) { // if header buffer is externally provided, use it directly
@@ -172,37 +210,44 @@ bool OpenThingsFramework::localServerLoop() {
 
   char *buffer = headerBuffer;
   size_t length = 0;
-  bool isFirstLine = true;
+  bool overflow = false;
 
-  while (localClient->dataAvailable() && millis()-timeoutStart < WIFI_CONNECTION_TIMEOUT) {
-    if (isFirstLine) {
-      // Read the first line (Request Line) directly into the main buffer.
-      // This supports very long query strings (up to headerBufferSize).
-      size_t read = localClient->readBytesUntil('\n', &buffer[length],
-                                                headerBufferSize - HEADER_BUFFER_RESERVED_BYTES);
-      length += read;
-      buffer[length++] = '\n';
-      isFirstLine = false;
-      continue;
-    }
+  // The request line goes directly into the main buffer, which supports long
+  // query strings (up to headerBufferSize). One that does not fit is rejected
+  // rather than truncated.
+  if (!readRequestLine(localClient, buffer, headerBufferSize - HEADER_BUFFER_RESERVED_BYTES, length, overflow,
+                       timeoutStart)) {
+    OTF_DEBUG(F("Timed out reading the request line\n"));
+    localClient->print(F("HTTP/1.1 408 Request Timeout\r\nConnection: close\r\n\r\nIncomplete request"));
+    closeCurrentClient();
+    return true;
+  }
+  if (overflow) {
+    OTF_DEBUG(F("Request line exceeds the header buffer\n"));
+    localClient->print(F("HTTP/1.1 414 URI Too Long\r\nConnection: close\r\n\r\nThe request line is too long"));
+    closeCurrentClient();
+    return true;
+  }
+  buffer[length++] = '\n';
 
+  // Header lines: keep only the ones the application uses, to save RAM.
+  for (;;) {
     char line[128];
-    size_t lineLen = localClient->readBytesUntil('\n', line, sizeof(line) - 1);
-    if (lineLen == 0) break; // timeout or end of data
-
-    // Check for empty line (end of headers)
-    if (lineLen == 1 && line[0] == '\r') break;
-
-    // Selective headers to keep. If-None-Match lets the application answer a
-    // cache revalidation with 304; keep it only when the whole line fit, so a
-    // truncated value is never matched.
-    if (strncasecmp(line, "content-length:", 15) == 0 ||
-        (strncasecmp(line, "if-none-match:", 14) == 0 && line[lineLen-1] == '\r')) {
-      if (length + lineLen + 1 < headerBufferSize - 4) {
-        memcpy(&buffer[length], line, lineLen);
-        length += lineLen;
-        buffer[length++] = '\n';
-      }
+    size_t lineLen = 0;
+    if (!readRequestLine(localClient, line, sizeof(line), lineLen, overflow, timeoutStart)) {
+      OTF_DEBUG(F("Timed out reading request headers\n"));
+      localClient->print(F("HTTP/1.1 408 Request Timeout\r\nConnection: close\r\n\r\nIncomplete request headers"));
+      closeCurrentClient();
+      return true;
+    }
+    // An empty line ends the headers.
+    if (lineLen == 0 || (lineLen == 1 && line[0] == '\r')) break;
+    // Longer than any header we keep (e.g. a long User-Agent): already consumed, skip it.
+    if (overflow) continue;
+    if (isKeptHeader(line, lineLen) && length + lineLen + 1 < headerBufferSize - 4) {
+      memcpy(&buffer[length], line, lineLen);
+      length += lineLen;
+      buffer[length++] = '\n';
     }
   }
 

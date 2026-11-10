@@ -15,3 +15,5 @@ OTF-Controller-Library/example/config.h
 /test/test_websocket_reconnect
 /test/test_websocket_reconnect_esp32
 /test/test_reconnect_loopback
+/test/test_local_headers_arduino
+/test/test_local_headers_linux
