@@ -109,8 +109,15 @@ int main() {
   assert(r.handled == 0 && r.output.find("408") != std::string::npos);
 
   // A request line longer than the header buffer is rejected, not truncated.
-  r = run(otf, "GET /test?v=" + std::string(HEADERS_BUFFER_SIZE, 'q') + " HTTP/1.1\r\n\r\n");
-  assert(r.handled == 0 && r.output.find("414") != std::string::npos);
+  // Its headers are read first, so no unread input resets the connection.
+  {
+    FakeLocalClient client;
+    client.input = "GET /test?v=" + std::string(HEADERS_BUFFER_SIZE, 'q') + " HTTP/1.1\r\n" + kTag + "X: y\r\n\r\n";
+    nextLocalClient = &client; handled = 0;
+    otf.loop(false);
+    assert(handled == 0 && client.output.find("414") != std::string::npos);
+    assert(client.offset == client.input.size());
+  }
   // One that fits is still accepted.
   r = run(otf, "GET /test?v=" + std::string(HEADERS_BUFFER_SIZE - 64, 'q') + " HTTP/1.1\r\n\r\n");
   assert(r.handled == 1);

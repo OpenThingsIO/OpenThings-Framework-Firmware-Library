@@ -214,7 +214,8 @@ bool OpenThingsFramework::localServerLoop() {
 
   // The request line goes directly into the main buffer, which supports long
   // query strings (up to headerBufferSize). One that does not fit is rejected
-  // rather than truncated.
+  // rather than truncated, after its headers are read: closing with unread
+  // input makes TCP reset the connection, which can discard the reply.
   if (!readRequestLine(localClient, buffer, headerBufferSize - HEADER_BUFFER_RESERVED_BYTES, length, overflow,
                        timeoutStart)) {
     OTF_DEBUG(F("Timed out reading the request line\n"));
@@ -222,13 +223,9 @@ bool OpenThingsFramework::localServerLoop() {
     closeCurrentClient();
     return true;
   }
-  if (overflow) {
-    OTF_DEBUG(F("Request line exceeds the header buffer\n"));
-    localClient->print(F("HTTP/1.1 414 URI Too Long\r\nConnection: close\r\n\r\nThe request line is too long"));
-    closeCurrentClient();
-    return true;
-  }
-  buffer[length++] = '\n';
+  const bool requestLineTooLong = overflow;
+  if (requestLineTooLong) length = 0;
+  else buffer[length++] = '\n';
 
   // Header lines: keep only the ones the application uses, to save RAM.
   for (;;) {
@@ -244,11 +241,17 @@ bool OpenThingsFramework::localServerLoop() {
     if (lineLen == 0 || (lineLen == 1 && line[0] == '\r')) break;
     // Longer than any header we keep (e.g. a long User-Agent): already consumed, skip it.
     if (overflow) continue;
-    if (isKeptHeader(line, lineLen) && length + lineLen + 1 < headerBufferSize - 4) {
+    if (!requestLineTooLong && isKeptHeader(line, lineLen) && length + lineLen + 1 < headerBufferSize - 4) {
       memcpy(&buffer[length], line, lineLen);
       length += lineLen;
       buffer[length++] = '\n';
     }
+  }
+  if (requestLineTooLong) {
+    OTF_DEBUG(F("Request line exceeds the header buffer\n"));
+    localClient->print(F("HTTP/1.1 414 URI Too Long\r\nConnection: close\r\n\r\nThe request line is too long"));
+    closeCurrentClient();
+    return true;
   }
 
   // Standardize end of headers with \r\n\r\n for the Request parser
