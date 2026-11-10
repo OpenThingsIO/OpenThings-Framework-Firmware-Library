@@ -39,19 +39,22 @@ static void waitForRequestData() {
 /* Reads one physical line through its '\n', which is consumed but not stored.
  * At most cap-1 bytes are kept, NUL-terminated; `overflow` reports a longer line,
  * whose remainder is consumed and discarded so it can never be parsed as another
- * line. Returns false if the deadline passes before the '\n' arrives. */
+ * line. Returns false once `start` is WIFI_CONNECTION_TIMEOUT old, whether or
+ * not input is still arriving. */
 static bool readRequestLine(LocalClient *client, char *buf, size_t cap, size_t &len, bool &overflow,
                             uint32_t start) {
   len = 0;
   overflow = false;
   buf[0] = 0;
   for (;;) {
+    // One deadline for the whole request line and headers, checked on every
+    // byte: a client that keeps sending cannot extend it.
+    if (millis() - start >= WIFI_CONNECTION_TIMEOUT) {
+      buf[len] = 0;
+      return false;
+    }
     char c;
     if (client->availableBytes() == 0 || client->readBytes(&c, 1) != 1) {
-      if (millis() - start >= WIFI_CONNECTION_TIMEOUT) {
-        buf[len] = 0;
-        return false;
-      }
       waitForRequestData();
       continue;
     }

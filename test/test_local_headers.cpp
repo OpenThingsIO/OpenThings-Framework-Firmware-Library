@@ -12,7 +12,21 @@ WebsocketClient *testSocket = nullptr;
 FakeLocalClient *OTF::nextLocalClient = nullptr;
 bool failCloudAllocation = false;
 
-uint32_t millis() { static uint32_t now = 0; return ++now; }
+// Each clock read advances 1 ms; a SlowClient also advances it per byte read.
+static uint32_t now = 0;
+uint32_t millis() { return ++now; }
+
+// Input that is always available but arrives slowly: the deadline must hold
+// even though reads never wait.
+struct SlowClient : FakeLocalClient {
+  uint32_t msPerByte;
+  explicit SlowClient(uint32_t ms) : msPerByte(ms) {}
+  size_t readBytes(char *buffer, size_t length) override {
+    size_t n = FakeLocalClient::readBytes(buffer, length);
+    now += uint32_t(n) * msPerByte;
+    return n;
+  }
+};
 
 static unsigned handled;
 static std::string seenInm, seenBody;
@@ -108,6 +122,29 @@ int main() {
   r = run(otf, "GET /test HTTP/1.1");
   assert(r.handled == 0 && r.output.find("408") != std::string::npos);
 
+  // Continuously available input past the 1.5 s deadline: 408, never dispatched.
+  // 10 ms/byte crosses the deadline after ~150 bytes, within a normal-length
+  // header block and within one oversized (skipped) header line.
+  for (const std::string &input : {
+         std::string(kGet) + "X-A: " + std::string(100, 'a') + "\r\nX-B: " + std::string(100, 'b') + "\r\n" + kTag + "\r\n",
+         std::string(kGet) + "X-Pad: " + std::string(400, 'p') + "\r\n\r\n",
+         "GET /test?v=" + std::string(400, 'q') + " HTTP/1.1\r\n\r\n"}) {
+    SlowClient client(10);
+    client.input = input;
+    nextLocalClient = &client; handled = 0;
+    otf.loop(false);
+    assert(handled == 0 && client.output.find("408") != std::string::npos);
+    assert(client.offset < client.input.size());  // stopped reading at the deadline
+  }
+  // The same requests at 1 ms/byte finish inside the deadline.
+  {
+    SlowClient client(1);
+    client.input = std::string(kGet) + "X-Pad: " + std::string(400, 'p') + "\r\n" + kTag + "\r\n";
+    nextLocalClient = &client; handled = 0;
+    otf.loop(false);
+    assert(handled == 1 && client.output.find("408") == std::string::npos);
+  }
+
   // A request line longer than the header buffer is rejected, not truncated.
   // Its headers are read first, so no unread input resets the connection.
   {
@@ -122,5 +159,5 @@ int main() {
   r = run(otf, "GET /test?v=" + std::string(HEADERS_BUFFER_SIZE - 64, 'q') + " HTTP/1.1\r\n\r\n");
   assert(r.handled == 1);
 
-  printf("Local header framing: line buffer boundaries, fragments, kept headers, timeouts and 414 passed\n");
+  printf("Local header framing: line buffer boundaries, fragments, kept headers, timeouts (stalled and continuous input) and 414 passed\n");
 }
