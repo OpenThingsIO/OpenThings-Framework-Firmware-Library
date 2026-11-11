@@ -202,6 +202,19 @@ int main() {
   assert(testSocket->responses.size() == 1);
   assert(testSocket->responses[0] == "RES: 0011\r\nHTTP/1.1 200 OK\r\n\r\n" + large);
 
+  // Local transport must preserve the exact same body across buffer boundaries.
+  reset();
+  handler = [&large](const Request &, Response &res) {
+    res.writeStatus(200, F("OK"));
+    res.writeHeader(F("Content-Length"), static_cast<int>(large.size()));
+    res.writeBodyData(large.data(), large.size());
+  };
+  FakeLocalClient largeLocal;
+  largeLocal.input = "GET /test HTTP/1.1\r\n\r\n";
+  nextLocalClient = &largeLocal;
+  otf.loop(false);
+  assert(largeLocal.output == "HTTP/1.1 200 OK\r\nContent-Length: 12000\r\n\r\n" + large);
+
   reset();
   handler = [&large](const Request &, Response &res) {
     res.writeStatus(200, F("OK"));

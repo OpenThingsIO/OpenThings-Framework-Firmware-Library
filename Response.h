@@ -11,8 +11,15 @@
 #include <stdarg.h>
 #endif
 
-// The maximum possible size of response messages.
-#define RESPONSE_BUFFER_SIZE 4096
+// Per-response staging buffer; larger responses stream across multiple writes.
+// Keep the default for existing applications; constrained builds can override it.
+#ifndef OTF_RESPONSE_BUFFER_SIZE
+#define OTF_RESPONSE_BUFFER_SIZE 4096
+#endif
+#if OTF_RESPONSE_BUFFER_SIZE < 256
+#error "OTF response buffer must be at least 256 bytes"
+#endif
+#define RESPONSE_BUFFER_SIZE OTF_RESPONSE_BUFFER_SIZE
 
 namespace OTF {
 
