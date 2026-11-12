@@ -5,6 +5,7 @@
 #include <assert.h>
 #include <stdio.h>
 #include <string>
+#include <vector>
 
 using namespace OTF;
 
@@ -14,7 +15,8 @@ bool failCloudAllocation = false;
 
 // Each clock read advances 1 ms; a SlowClient also advances it per byte read.
 static uint32_t now = 0;
-uint32_t millis() { return ++now; }
+static unsigned clockDivisor = 1, clockCalls = 0;
+uint32_t millis() { if (++clockCalls % clockDivisor == 0) ++now; return now; }
 
 // Input that is always available but arrives slowly: the deadline must hold
 // even though reads never wait.
@@ -158,6 +160,31 @@ int main() {
   // One that fits is still accepted.
   r = run(otf, "GET /test?v=" + std::string(HEADERS_BUFFER_SIZE - 64, 'q') + " HTTP/1.1\r\n\r\n");
   assert(r.handled == 1);
+
+  // Exact physical request-line boundaries, including CR but excluding LF.
+  // Use a faster fake clock for these large, immediately available requests;
+  // slow/incomplete deadline coverage above retains the 1 ms clock.
+  clockDivisor = 32;
+  for (size_t capacity : {size_t(1024), size_t(2048), size_t(4096), size_t(8192)}) {
+    std::vector<char> buffer(capacity);
+    OpenThingsFramework custom(0, buffer.data(), int(capacity));
+    custom.on("/test", route);
+    for (int delta : {-1, 0, 1}) {
+      const size_t length = capacity - 11 + delta;
+      const std::string prefix = "GET /test?v=", suffix = " HTTP/1.1\r";
+      FakeLocalClient client;
+      client.input = prefix + std::string(length - prefix.size() - suffix.size(), 'q') + suffix + "\n\r\n";
+      nextLocalClient = &client; handled = 0;
+      custom.loop(false);
+      assert(client.offset == client.input.size());
+      if (delta <= 0) {
+        assert(handled == 1 && client.output.find("200 OK") != std::string::npos);
+      } else {
+        assert(handled == 0 && client.output.find("414") != std::string::npos);
+      }
+    }
+  }
+  clockDivisor = 1;
 
   printf("Local header framing: line buffer boundaries, fragments, kept headers, timeouts (stalled and continuous input) and 414 passed\n");
 }

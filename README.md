@@ -24,7 +24,15 @@ Local HTTP request bodies require a valid `Content-Length` and must arrive compl
   full, so their remaining bytes cannot be interpreted as another header.
   Incomplete or slow request headers receive HTTP 408 under one request deadline,
   including when input keeps arriving. Overlong request lines receive HTTP 414
-  after the headers have been consumed.
+  after the headers have been consumed. The request-line limit follows the
+  constructor's supplied buffer size, not a fixed 1 KiB limit: for a buffer of
+  N bytes it accepts N-11 bytes before the newline, including the carriage
+  return (10 reserved bytes and one NUL terminator). The default 1024-byte
+  buffer therefore accepts 1013 bytes; 2/4/8 KiB buffers accept 2037/4085/8181.
+  This is the whole request line, not just the URL. Kept headers must also fit
+  the shared request buffer. The strict total header deadline is 1.5 seconds
+  with the default timeout; handling remains synchronous and can delay the
+  application loop while waiting. It is not a nonblocking-server change.
 * `OTF_RESPONSE_BUFFER_SIZE` sets the response staging buffer at build time.
   The default remains 4096 bytes; values below 256 are rejected. Raw body writes
   stream across buffer boundaries. Applications reducing the buffer must ensure
