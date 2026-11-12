@@ -16,6 +16,22 @@ Then, copy this library into the `libraries` directory of your sketchbook locati
 
 Local HTTP request bodies require a valid `Content-Length` and must arrive completely within the request timeout. The default maximum body size is 8192 bytes. Resource-constrained applications can override it at compile time, for example with `-DOTF_MAX_BODY_SIZE=2048`.
 
+### Version 0.2.7
+
+* Local requests retain complete `If-None-Match` headers, allowing applications
+  to implement conditional GET responses on the LAN as well as through OTC.
+* Local headers are read as physical lines. Overlong headers are discarded in
+  full, so their remaining bytes cannot be interpreted as another header.
+  Incomplete or slow request headers receive HTTP 408 under one request deadline,
+  including when input keeps arriving. Overlong request lines receive HTTP 414
+  after the headers have been consumed.
+* `OTF_RESPONSE_BUFFER_SIZE` sets the response staging buffer at build time.
+  The default remains 4096 bytes; values below 256 are rejected. Raw body writes
+  stream across buffer boundaries. Applications reducing the buffer must ensure
+  each individual formatted write (including a header) fits.
+
+These changes do not change cloud authentication, TLS, or the proxy server.
+
 ### Tests
 
 Run the focused native parser tests with:
