@@ -106,6 +106,7 @@ public:
   WebsocketClient() { testSocket = this; }
   void onEvent(std::function<void(WSEvent_t, uint8_t *, size_t)> fn) { callback = fn; }
   template<class T> void connect(T, int, T) { emit(WSEvent_CONNECTED); }
+  template<class T> void connectSecure(T host,int port,T path) {connect(host,port,path);}
   void setReconnectInterval(uint32_t) {}
   void enableHeartbeat(uint32_t, uint32_t, uint8_t) {}
   void resetStreaming() { streaming = false; currentResponse.clear(); }

@@ -116,6 +116,15 @@ public:
     WebSocketsClient::disconnect();
   }
 
+#ifdef OG_SECURE_CLOUD
+  bool transportActive() const {return _client.tcp!=nullptr;}
+  void pauseTransport() {
+    enableReconnect=true;attemptActive=false;
+    WebSockets::clientDisconnect(&_client,1000);
+    retry.paused(millis());
+  }
+#endif
+
   /**
    * @brief Enable a heartbeat to keep the connection alive
    * 

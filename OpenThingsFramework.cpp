@@ -122,7 +122,12 @@ OpenThingsFramework::OpenThingsFramework(uint16_t webServerPort, const char* web
 
   if (useSsl) {
     OTF_DEBUG(F("Connecting to websocket with SSL\n"));
-    // webSocket->connectSecure(webSocketHost, webSocketPort, "/socket/v1?deviceKey=" + deviceKey);
+#if defined(ARDUINO)
+    webSocket->connectSecure(webSocketHost,webSocketPort,"/socket/v1?deviceKey="+deviceKey);
+#else
+    std::string path=std::string("/socket/v1?deviceKey=")+deviceKey;
+    webSocket->connectSecure(std::string(webSocketHost),webSocketPort,path);
+#endif
   } else {
     OTF_DEBUG(F("Connecting to websocket without SSL\n"));
     #if defined(ARDUINO)
@@ -648,3 +653,15 @@ CLOUD_STATUS OpenThingsFramework::getCloudStatus() {
 uint32_t OpenThingsFramework::getTimeSinceLastCloudStatusChange() {
   return millis() - lastCloudStatusChangeTime;
 }
+
+#ifdef OG_SECURE_CLOUD
+void OTF::OpenThingsFramework::pauseCloud() {
+  ++cloudGeneration;
+  clearPendingCloudRequest();
+  closeCloud=false;
+  if(webSocket)webSocket->pauseTransport();
+}
+bool OTF::OpenThingsFramework::cloudTransportActive() const {
+  return webSocket && webSocket->transportActive();
+}
+#endif

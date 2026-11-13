@@ -53,3 +53,13 @@ make -C test test
 * Add support for OTA firmware updates.
 
 * Cleanup debug logging.
+
+### Candidate secure-cloud integration (not released)
+
+An opt-in `OG_SECURE_CLOUD` integration enables the existing Arduino secure
+constructor path and exposes intentional transport pause for resource sharing.
+Pause increments the cloud generation and discards pending forwarded work;
+requests are never replayed after reconnect. The pause preserves reconnect
+failure history. Trust, buffer ownership and secure-client policy are supplied
+by the application's reviewed WebSockets/core integration. Ordinary users and
+builds without this flag retain their existing transport implementation.

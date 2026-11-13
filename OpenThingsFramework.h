@@ -154,6 +154,10 @@ namespace OTF {
 
     /** Returns the current status of the connection to the OpenThings Cloud server. */
     CLOUD_STATUS getCloudStatus();
+#ifdef OG_SECURE_CLOUD
+    void pauseCloud();
+    bool cloudTransportActive() const;
+#endif
 
     /** Returns the number of milliseconds since there was last a change in the cloud status. */
     uint32_t getTimeSinceLastCloudStatusChange();
