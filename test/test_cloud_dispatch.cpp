@@ -283,5 +283,17 @@ int main() {
   }
   testSocket = originalSocket;
 #endif
+#ifdef OG_SECURE_CLOUD
+  reset();
+  testSocket->emit(WSEvent_TEXT,frame("00aa"));
+  assert(otf.cloudTransportActive());
+  otf.pauseCloud();
+  assert(!otf.cloudTransportActive() && testSocket->reconnectOnClose);
+  otf.loop();assert(handled==0 && testSocket->responses.empty());
+  testSocket->emit(WSEvent_CONNECTED);
+  enqueue("00ab");otf.loop();
+  assert(handled==1 && testSocket->responses.size()==1);
+  assert(testSocket->responses[0].find("RES: 00ab\r\n")==0);
+#endif
   return 0;
 }

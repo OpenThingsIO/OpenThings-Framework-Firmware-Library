@@ -17,3 +17,5 @@ OTF-Controller-Library/example/config.h
 /test/test_reconnect_loopback
 /test/test_local_headers_arduino
 /test/test_local_headers_linux
+
+/test/test_cloud_pause_arduino

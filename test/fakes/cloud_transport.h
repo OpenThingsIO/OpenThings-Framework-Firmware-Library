@@ -93,6 +93,9 @@ public:
   std::function<void()> afterCallback;
   std::function<void()> onSend;
   std::function<void()> onStream;
+  bool transportOpen=true;
+  bool transportActive() const {return transportOpen;}
+  void pauseTransport(){close(true);}
   bool streaming = false;
   bool inPoll = false;
   bool drainAll = false;
@@ -112,6 +115,8 @@ public:
   void resetStreaming() { streaming = false; currentResponse.clear(); }
   bool isStreamOpen() const { return streaming; }
   void emit(WSEvent_t type, const std::string &payload = "") {
+    if(type==WSEvent_CONNECTED)transportOpen=true;
+    if(type==WSEvent_DISCONNECTED)transportOpen=false;
     std::vector<uint8_t> bytes(payload.begin(), payload.end());
     bytes.push_back(0);
     callback(type, bytes.data(), payload.size());
