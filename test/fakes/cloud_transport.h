@@ -93,7 +93,8 @@ public:
   std::function<void()> afterCallback;
   std::function<void()> onSend;
   std::function<void()> onStream;
-  bool transportOpen=true;
+  bool transportOpen=false;
+  unsigned plainConnects=0,secureConnects=0;
   bool transportActive() const {return transportOpen;}
   void pauseTransport(){close(true);}
   bool streaming = false;
@@ -108,8 +109,8 @@ public:
 
   WebsocketClient() { testSocket = this; }
   void onEvent(std::function<void(WSEvent_t, uint8_t *, size_t)> fn) { callback = fn; }
-  template<class T> void connect(T, int, T) { emit(WSEvent_CONNECTED); }
-  template<class T> void connectSecure(T host,int port,T path) {connect(host,port,path);}
+  template<class T> void connect(T, int, T) { ++plainConnects;emit(WSEvent_CONNECTED); }
+  template<class T> void connectSecure(T,int,T) {++secureConnects;emit(WSEvent_CONNECTED);}
   void setReconnectInterval(uint32_t) {}
   void enableHeartbeat(uint32_t, uint32_t, uint8_t) {}
   void resetStreaming() { streaming = false; currentResponse.clear(); }

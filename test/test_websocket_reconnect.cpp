@@ -24,6 +24,7 @@ public:
     dropTcp();
   }
   bool connected() const { return _client.status == WSC_CONNECTED; }
+  unsigned close_code() const { return closeCode; }
 };
 static void reset(ReconnectTest::Peer peer, uint32_t start = 60000,
                   uint32_t duration = 0, uint32_t cleanup = 0) {
@@ -151,5 +152,61 @@ int main() {
     capped.insert(elapsed);
   }
   assert(startup.size()>1000 && capped.size()>800);
+#ifdef OG_SECURE_CLOUD
+  for (uint32_t start : {60000u, 0xfffff000u}) {
+    // Reentrant polling must stay blocked even if cleanup exceeds five seconds.
+    reset(Peer::Healthy, start, 0, 6000);
+    Client client;
+    begin(client);
+    run(client, 6000);
+    assert(client.connected() && client.transportActive());
+    size_t count = attempts.size();
+    client.onEvent([&](WSEvent_t type, uint8_t *, size_t) {
+      if (type == WSEvent_DISCONNECTED) client.poll();
+    });
+    client.pauseTransport();
+    assert(attempts.size() == count && !client.transportActive());
+    assert(client.close_code() == 1000);
+    uint32_t pausedAt = now;
+    run(client, 4990);
+    assert(attempts.size() == count);
+    run(client, 300);
+    assert(attempts.size() == count + 1 && client.connected());
+    assert(uint32_t(attempts.back() - pausedAt) == 5000);
+  }
+  // Pausing must not erase the retry history of a previous extended outage.
+  reset(Peer::Refuse);
+  {
+    Client client;
+    begin(client);
+    run(client, 600000);
+    peer = Peer::Healthy;
+    run(client, 370000);
+    assert(client.connected());
+    client.pauseTransport();
+    size_t count = attempts.size();
+    run(client, 5300);
+    assert(attempts.size() == count + 1 && client.connected());
+    count = attempts.size();
+    uint32_t drop = now;
+    client.dropTcp();
+    run(client, 149000);
+    assert(attempts.size() == count);
+    run(client, 152000);
+    assert(attempts.size() == count + 1);
+    assert(uint32_t(attempts.back() - drop) >= 150000);
+  }
+  // A half-open upgrade owns transport memory too.
+  reset(Peer::Healthy);
+  {
+    Client client;
+    begin(client);
+    while (attempts.empty()) run(client, 10);
+    assert(client.transportActive() && !client.connected());
+    client.pauseTransport();
+    assert(!client.transportActive());
+  }
+  std::puts("PASS real pause: cleanup, reentrancy, delay, history, half-open transport and rollover");
+#endif
   std::puts("PASS exponential jitter, failure paths, stable reset, reentrancy, fleet and rollover");
 }

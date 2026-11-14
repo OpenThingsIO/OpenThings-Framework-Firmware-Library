@@ -1,11 +1,16 @@
 #ifndef WEBSOCKET_H
 #define WEBSOCKET_H
 
+#include "SecureCloudConfig.h"
+
 #include "ReconnectPolicy.h"
 
 #if defined(ARDUINO)
 #include <Arduino.h>
 #include <WebSocketsClient.h>
+#if defined(OG_SECURE_CLOUD) && (!defined(OG_VERIFIED_WSS_TRANSPORT) || OG_VERIFIED_WSS_TRANSPORT != 1)
+#error "OG_SECURE_CLOUD requires the reviewed verified WebSockets transport"
+#endif
 typedef String WSInterfaceString;
 #else
 #include <tiny_websockets/client.hpp>
@@ -118,11 +123,7 @@ public:
 
 #ifdef OG_SECURE_CLOUD
   bool transportActive() const {return _client.tcp!=nullptr;}
-  void pauseTransport() {
-    enableReconnect=true;attemptActive=false;
-    WebSockets::clientDisconnect(&_client,1000);
-    retry.paused(millis());
-  }
+  void pauseTransport();
 #endif
 
   /**

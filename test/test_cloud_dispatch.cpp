@@ -67,6 +67,19 @@ int main() {
   framework = &otf;
   otf.on("/test", route);
 
+  // Opt-in activates TLS; ordinary builds keep the 0.2.7 constructor behavior.
+  auto *plainSocket = testSocket;
+  {
+    OpenThingsFramework secure(0, "host", 443, "test-key", true);
+    assert(testSocket->plainConnects == 0);
+#ifdef OG_SECURE_CLOUD
+    assert(testSocket->secureConnects == 1);
+#else
+    assert(testSocket->secureConnects == 0);
+#endif
+  }
+  testSocket = plainSocket;
+
   // A destroyed callback payload remains valid in the deferred handler.
   testSocket->afterCallback = []() {
 #if defined(ARDUINO)
@@ -294,6 +307,20 @@ int main() {
   enqueue("00ab");otf.loop();
   assert(handled==1 && testSocket->responses.size()==1);
   assert(testSocket->responses[0].find("RES: 00ab\r\n")==0);
+
+  reset();
+  handler = [&](const Request &req, Response &res) {
+    otf.pauseCloud();
+    // The executing request is not the pending slot; cleanup must not free it.
+    assert(strcmp(req.getQueryParameter("value"), "hello") == 0);
+    res.writeStatus(200, F("OK"));
+    res.writeBodyData("discard", 7);
+  };
+  enqueue("00ac");otf.loop();
+  assert(handled==1 && testSocket->responses.empty());
+  reset();enqueue("00ad");otf.loop();
+  assert(handled==1 && testSocket->responses.size()==1);
+  assert(testSocket->responses[0].find("RES: 00ad\r\n")==0);
 #endif
   return 0;
 }

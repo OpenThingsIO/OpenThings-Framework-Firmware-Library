@@ -63,3 +63,16 @@ requests are never replayed after reconnect. The pause preserves reconnect
 failure history. Trust, buffer ownership and secure-client policy are supplied
 by the application's reviewed WebSockets/core integration. Ordinary users and
 builds without this flag retain their existing transport implementation.
+
+This opt-in supports only Arduino ESP8266 and requires the paired transport's
+`OG_VERIFIED_WSS_TRANSPORT=1` capability marker. Unsupported platforms or an
+unpatched dependency fail compilation; defining the flag is not a way to enable
+generic upstream TLS. Ordinary ESP8266, ESP32 and Linux users need no new flags.
+Without the opt-in, the existing `useSsl=true` constructor remains inactive as
+in0.2.7; this candidate does not silently enable it for other applications.
+
+Pause blocks reentrant polling throughout synchronous disconnect/cleanup. Its
+five-second reconnect delay begins after cleanup and preserves outage backoff.
+There are no additional per-client state fields. The full host suite includes
+the real pause wrapper with callback reentrancy, slow cleanup, half-open sockets,
+retry-history/rollover cases, and framework pending/in-flight request lifetimes.

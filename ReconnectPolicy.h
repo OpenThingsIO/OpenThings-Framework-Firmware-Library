@@ -23,8 +23,10 @@ public:
     delay = next / 2 + random() % (next - next / 2 + 1);
     next = next >= 150000 ? 300000 : next * 2;
   }
+#ifdef OG_SECURE_CLOUD
   // Intentional resource sharing preserves the failure-backoff history.
   void paused(uint32_t now) {connected=false;activity=false;since=now;delay=5000;}
+#endif
   void opened(uint32_t now) {
     connected = true;
     activity = false;

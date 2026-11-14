@@ -1,6 +1,8 @@
 #ifndef OTF_OPENTHINGSFRAMEWORK_H
 #define OTF_OPENTHINGSFRAMEWORK_H
 
+#include "SecureCloudConfig.h"
+
 #include "Request.h"
 #include "Response.h"
 

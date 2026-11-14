@@ -123,12 +123,7 @@ OpenThingsFramework::OpenThingsFramework(uint16_t webServerPort, const char* web
   if (useSsl) {
     OTF_DEBUG(F("Connecting to websocket with SSL\n"));
 #ifdef OG_SECURE_CLOUD
-#if defined(ARDUINO)
     webSocket->connectSecure(webSocketHost,webSocketPort,"/socket/v1?deviceKey="+deviceKey);
-#else
-    std::string path=std::string("/socket/v1?deviceKey=")+deviceKey;
-    webSocket->connectSecure(std::string(webSocketHost),webSocketPort,path);
-#endif
 #endif
   } else {
     OTF_DEBUG(F("Connecting to websocket without SSL\n"));

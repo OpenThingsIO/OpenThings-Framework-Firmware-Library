@@ -3,13 +3,29 @@
 #include <Arduino.h>
 #include <vector>
 
+#ifndef TEST_UNVERIFIED_TRANSPORT
+#ifndef OG_VERIFIED_WSS_TRANSPORT
+#define OG_VERIFIED_WSS_TRANSPORT 1
+#endif
+#endif
+
 enum WStype_t {
   WStype_ERROR, WStype_DISCONNECTED, WStype_CONNECTED, WStype_TEXT,
   WStype_BIN, WStype_PING, WStype_PONG
 };
 enum WSCstatus_t { WSC_NOT_CONNECTED, WSC_HEADER, WSC_CONNECTED };
 enum WSopcode_t { WSop_text, WSop_continuation };
-struct WSclient_t { WSCstatus_t status = WSC_NOT_CONNECTED; String cUrl; };
+struct WSclient_t { WSCstatus_t status = WSC_NOT_CONNECTED; String cUrl; void *tcp = nullptr; };
+
+class WebSockets {
+protected:
+  unsigned closeCode = 0;
+  void clientDisconnect(WSclient_t *client, unsigned code) {
+    closeCode = code;
+    clientDisconnect(client);
+  }
+  virtual void clientDisconnect(WSclient_t *) = 0;
+};
 
 namespace ReconnectTest {
 enum class Peer { Healthy, Refuse, SilentBeforeUpgrade, SilentAfterUpgrade,
@@ -25,7 +41,7 @@ extern std::vector<uint32_t> disconnects;
 // Models the synchronous arduinoWebSockets 2.7.3 lifecycle, not network I/O.
 // In particular a refused connect retains its TCP object until the next
 // clientIsConnected() cleanup, which stamps _lastConnectionFail again.
-class WebSocketsClient {
+class WebSocketsClient : public WebSockets {
 public:
   void enableHeartbeat(uint32_t interval, uint32_t timeout, uint8_t) {
     heartbeatInterval = interval;
@@ -56,6 +72,7 @@ public:
       if (static_cast<uint32_t>(now-_lastConnectionFail) < _reconnectInterval) return;
       attempts.push_back(now);
       hasTcp = true;
+      _client.tcp = this;
       now += connectDuration;
       if (peer == Peer::Refuse) {
         _lastConnectionFail = now;
@@ -103,6 +120,7 @@ protected:
     using namespace ReconnectTest;
     bool event = hasTcp;
     hasTcp = tcpUp = readableReply = false;
+    _client.tcp = nullptr;
     _client.status = WSC_NOT_CONNECTED;
     now += cleanupDuration;
     _lastConnectionFail = now;
@@ -111,6 +129,7 @@ protected:
       if (callback) callback(WStype_DISCONNECTED, nullptr, 0);
     }
   }
+  void clientDisconnect(WSclient_t *) override { clientDisconnect(); }
   WSclient_t _client;
   // Retain the dependency's declared types to expose host-width mistakes.
   unsigned long _lastConnectionFail = 0;

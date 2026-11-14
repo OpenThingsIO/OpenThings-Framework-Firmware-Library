@@ -28,9 +28,29 @@ struct PollGuard {
   explicit PollGuard(bool &value) : flag(value) { flag = true; }
   ~PollGuard() { flag = false; }
 };
+#ifdef OG_SECURE_CLOUD
+struct PauseGuard {
+  bool &flag;
+  bool previous;
+  explicit PauseGuard(bool &value) : flag(value), previous(value) { flag = true; }
+  ~PauseGuard() { flag = previous; }
+};
+#endif
 }
 
 #if defined(ARDUINO)
+#ifdef OG_SECURE_CLOUD
+void WebsocketClient::pauseTransport() {
+  // A disconnect callback may call poll(), including after slow TLS cleanup.
+  // Never allow it to allocate a new connection inside the intentional pause.
+  PauseGuard guard(polling);
+  enableReconnect = true;
+  attemptActive = false;
+  WebSockets::clientDisconnect(&_client, 1000);
+  retry.paused(millis()); // Coalescing delay starts after cleanup completes.
+}
+#endif
+
 void WebsocketClient::enableHeartbeat(uint32_t interval, uint32_t timeout, uint8_t maxMissed) {
   WebSocketsClient::enableHeartbeat(interval, timeout, maxMissed);
 }

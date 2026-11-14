@@ -14,8 +14,10 @@ test_reconnect_loopback: test_reconnect_loopback.cpp ../Websocket.cpp ../Websock
 		test_reconnect_loopback.cpp ../Websocket.cpp \
 		../../TinyWebsockets/tiny_websockets_lib/src/*.cpp -lssl -lcrypto -o $@
 
-test: test_cloud_pause_arduino test_http_parser test_etherport test_forwarded_request test_request test_string_builder test_cloud_dispatch_arduino test_cloud_dispatch_linux test_local_headers_arduino test_local_headers_linux test_websocket_reconnect test_websocket_reconnect_esp32
+test: test_cloud_pause_arduino test_websocket_pause_esp8266 test_http_parser test_etherport test_forwarded_request test_request test_string_builder test_cloud_dispatch_arduino test_cloud_dispatch_linux test_local_headers_arduino test_local_headers_linux test_websocket_reconnect test_websocket_reconnect_esp32
+	python3 test_secure_cloud_config.py
 	ASAN_OPTIONS=detect_leaks=1 ./test_cloud_pause_arduino
+	ASAN_OPTIONS=detect_leaks=1 ./test_websocket_pause_esp8266
 	./test_http_parser
 	ASAN_OPTIONS=detect_leaks=0 ./test_etherport
 	ASAN_OPTIONS=detect_leaks=0 ./test_forwarded_request
@@ -84,7 +86,12 @@ clean:
 	rm -f test_http_parser test_etherport test_forwarded_request test_request test_string_builder \
 		test_cloud_dispatch_arduino test_cloud_dispatch_linux test_local_headers_arduino test_local_headers_linux \
 		test_websocket_reconnect test_websocket_reconnect_esp32
+	rm -f test_cloud_pause_arduino test_websocket_pause_esp8266
 
 test_cloud_pause_arduino: $(CLOUD_SOURCES) $(CLOUD_HEADERS)
 	$(CXX) $(CXXFLAGS) -Wno-unused-parameter $(SANITIZER_FLAGS) -Ifakes -DARDUINO=10800 -DESP8266 -DOG_SECURE_CLOUD \
 		-include fakes/cloud_transport.h $(CLOUD_SOURCES) -Wl,--wrap=malloc -o $@
+
+test_websocket_pause_esp8266: test_websocket_reconnect.cpp fakes/reconnect/WebSocketsClient.h fakes/Arduino.h ../Websocket.cpp ../Websocket.h ../ReconnectPolicy.h ../SecureCloudConfig.h
+	$(CXX) $(CXXFLAGS) $(SANITIZER_FLAGS) -Ifakes/reconnect -Ifakes -DARDUINO=10800 -DESP8266 -DOG_SECURE_CLOUD \
+		test_websocket_reconnect.cpp ../Websocket.cpp -o $@
