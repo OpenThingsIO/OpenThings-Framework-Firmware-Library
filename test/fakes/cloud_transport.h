@@ -96,7 +96,8 @@ public:
   bool transportOpen=false;
   unsigned plainConnects=0,secureConnects=0;
   bool transportActive() const {return transportOpen;}
-  void pauseTransport(){close(true);}
+  bool pauseAllowed=true;
+  bool pauseTransport(){if(!pauseAllowed)return false;close(true);return true;}
   bool streaming = false;
   bool inPoll = false;
   bool drainAll = false;

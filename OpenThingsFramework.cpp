@@ -122,7 +122,7 @@ OpenThingsFramework::OpenThingsFramework(uint16_t webServerPort, const char* web
 
   if (useSsl) {
     OTF_DEBUG(F("Connecting to websocket with SSL\n"));
-#ifdef OG_SECURE_CLOUD
+#ifdef OTF_SECURE_CLOUD
     webSocket->connectSecure(webSocketHost,webSocketPort,"/socket/v1?deviceKey="+deviceKey);
 #endif
   } else {
@@ -651,12 +651,14 @@ uint32_t OpenThingsFramework::getTimeSinceLastCloudStatusChange() {
   return millis() - lastCloudStatusChangeTime;
 }
 
-#ifdef OG_SECURE_CLOUD
-void OTF::OpenThingsFramework::pauseCloud() {
+#ifdef OTF_SECURE_CLOUD
+bool OTF::OpenThingsFramework::pauseCloud() {
+  if(processingCloud)return false;
+  if(webSocket && !webSocket->pauseTransport())return false;
   ++cloudGeneration;
   clearPendingCloudRequest();
   closeCloud=false;
-  if(webSocket)webSocket->pauseTransport();
+  return true;
 }
 bool OTF::OpenThingsFramework::cloudTransportActive() const {
   return webSocket && webSocket->transportActive();

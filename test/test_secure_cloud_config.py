@@ -7,12 +7,12 @@ root = Path(__file__).resolve().parents[1]
 cases = [
     ('config Linux normal', 'SecureCloudConfig.h', [], True, ''),
     ('config ESP32 normal', 'SecureCloudConfig.h', ['ARDUINO', 'ESP32'], True, ''),
-    ('config supported', 'SecureCloudConfig.h', ['ARDUINO', 'ESP8266', 'OG_SECURE_CLOUD'], True, ''),
-    ('config Linux secure', 'SecureCloudConfig.h', ['OG_SECURE_CLOUD'], False, 'reviewed Arduino ESP8266'),
-    ('config ESP32 secure', 'SecureCloudConfig.h', ['ARDUINO', 'ESP32', 'OG_SECURE_CLOUD'], False, 'reviewed Arduino ESP8266'),
-    ('transport reviewed', 'Websocket.h', ['ARDUINO', 'ESP8266', 'OG_SECURE_CLOUD'], True, ''),
-    ('transport missing capability', 'Websocket.h', ['ARDUINO', 'ESP8266', 'OG_SECURE_CLOUD', 'TEST_UNVERIFIED_TRANSPORT'], False, 'reviewed verified WebSockets'),
-    ('transport wrong capability', 'Websocket.h', ['ARDUINO', 'ESP8266', 'OG_SECURE_CLOUD', 'OG_VERIFIED_WSS_TRANSPORT=2'], False, 'reviewed verified WebSockets'),
+    ('config supported', 'SecureCloudConfig.h', ['ARDUINO', 'ESP8266', 'OTF_SECURE_CLOUD'], True, ''),
+    ('config Linux secure', 'SecureCloudConfig.h', ['OTF_SECURE_CLOUD'], False, 'reviewed Arduino ESP8266'),
+    ('config ESP32 secure', 'SecureCloudConfig.h', ['ARDUINO', 'ESP32', 'OTF_SECURE_CLOUD'], False, 'reviewed Arduino ESP8266'),
+    ('transport reviewed', 'Websocket.h', ['ARDUINO', 'ESP8266', 'OTF_SECURE_CLOUD'], True, ''),
+    ('transport missing capability', 'Websocket.h', ['ARDUINO', 'ESP8266', 'OTF_SECURE_CLOUD', 'TEST_UNVERIFIED_TRANSPORT'], False, 'reviewed verified WebSockets'),
+    ('transport wrong capability', 'Websocket.h', ['ARDUINO', 'ESP8266', 'OTF_SECURE_CLOUD', 'OTF_VERIFIED_WSS_TRANSPORT=2'], False, 'reviewed verified WebSockets'),
     ('transport ordinary ESP8266', 'Websocket.h', ['ARDUINO', 'ESP8266', 'TEST_UNVERIFIED_TRANSPORT'], True, ''),
     ('transport ordinary ESP32', 'Websocket.h', ['ARDUINO', 'ESP32', 'TEST_UNVERIFIED_TRANSPORT'], True, ''),
 ]

@@ -156,8 +156,10 @@ namespace OTF {
 
     /** Returns the current status of the connection to the OpenThings Cloud server. */
     CLOUD_STATUS getCloudStatus();
-#ifdef OG_SECURE_CLOUD
-    void pauseCloud();
+#ifdef OTF_SECURE_CLOUD
+    // Application main loop only, after loop() returns; never request, WebSocket
+    // or ISR callbacks. False means dispatch/polling is busy: nothing was paused.
+    bool pauseCloud();
     bool cloudTransportActive() const;
 #endif
 

@@ -58,6 +58,7 @@ static void reset() {
   testSocket->failSend = false;
   testSocket->failStream = false;
   testSocket->drainAll = false;
+  testSocket->pauseAllowed = true;
   testSocket->closeCount = 0;
   testSocket->emit(WSEvent_CONNECTED);
 }
@@ -72,7 +73,7 @@ int main() {
   {
     OpenThingsFramework secure(0, "host", 443, "test-key", true);
     assert(testSocket->plainConnects == 0);
-#ifdef OG_SECURE_CLOUD
+#ifdef OTF_SECURE_CLOUD
     assert(testSocket->secureConnects == 1);
 #else
     assert(testSocket->secureConnects == 0);
@@ -296,11 +297,11 @@ int main() {
   }
   testSocket = originalSocket;
 #endif
-#ifdef OG_SECURE_CLOUD
+#ifdef OTF_SECURE_CLOUD
   reset();
   testSocket->emit(WSEvent_TEXT,frame("00aa"));
   assert(otf.cloudTransportActive());
-  otf.pauseCloud();
+  assert(otf.pauseCloud());
   assert(!otf.cloudTransportActive() && testSocket->reconnectOnClose);
   otf.loop();assert(handled==0 && testSocket->responses.empty());
   testSocket->emit(WSEvent_CONNECTED);
@@ -310,17 +311,28 @@ int main() {
 
   reset();
   handler = [&](const Request &req, Response &res) {
-    otf.pauseCloud();
-    // The executing request is not the pending slot; cleanup must not free it.
+    // A request handler is not a supported pause context: refuse before teardown.
+    assert(!otf.pauseCloud());
+    assert(otf.cloudTransportActive());
     assert(strcmp(req.getQueryParameter("value"), "hello") == 0);
     res.writeStatus(200, F("OK"));
-    res.writeBodyData("discard", 7);
+    res.writeBodyData("kept", 4);
   };
   enqueue("00ac");otf.loop();
-  assert(handled==1 && testSocket->responses.empty());
+  assert(handled==1 && testSocket->responses.size()==1);
+  assert(testSocket->responses[0].find("RES: 00ac\r\n")==0);
   reset();enqueue("00ad");otf.loop();
   assert(handled==1 && testSocket->responses.size()==1);
   assert(testSocket->responses[0].find("RES: 00ad\r\n")==0);
+
+  reset();
+  testSocket->emit(WSEvent_TEXT,frame("00ae"));
+  testSocket->pauseAllowed=false;
+  assert(!otf.pauseCloud() && otf.cloudTransportActive());
+  testSocket->pauseAllowed=true;
+  otf.loop();
+  assert(handled==1 && testSocket->responses.size()==1);
+  assert(testSocket->responses[0].find("RES: 00ae\r\n")==0);
 #endif
   return 0;
 }

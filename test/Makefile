@@ -89,9 +89,9 @@ clean:
 	rm -f test_cloud_pause_arduino test_websocket_pause_esp8266
 
 test_cloud_pause_arduino: $(CLOUD_SOURCES) $(CLOUD_HEADERS)
-	$(CXX) $(CXXFLAGS) -Wno-unused-parameter $(SANITIZER_FLAGS) -Ifakes -DARDUINO=10800 -DESP8266 -DOG_SECURE_CLOUD \
+	$(CXX) $(CXXFLAGS) -Wno-unused-parameter $(SANITIZER_FLAGS) -Ifakes -DARDUINO=10800 -DESP8266 -DOTF_SECURE_CLOUD \
 		-include fakes/cloud_transport.h $(CLOUD_SOURCES) -Wl,--wrap=malloc -o $@
 
 test_websocket_pause_esp8266: test_websocket_reconnect.cpp fakes/reconnect/WebSocketsClient.h fakes/Arduino.h ../Websocket.cpp ../Websocket.h ../ReconnectPolicy.h ../SecureCloudConfig.h
-	$(CXX) $(CXXFLAGS) $(SANITIZER_FLAGS) -Ifakes/reconnect -Ifakes -DARDUINO=10800 -DESP8266 -DOG_SECURE_CLOUD \
+	$(CXX) $(CXXFLAGS) $(SANITIZER_FLAGS) -Ifakes/reconnect -Ifakes -DARDUINO=10800 -DESP8266 -DOTF_SECURE_CLOUD \
 		test_websocket_reconnect.cpp ../Websocket.cpp -o $@

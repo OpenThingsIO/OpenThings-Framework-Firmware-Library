@@ -8,8 +8,8 @@
 #if defined(ARDUINO)
 #include <Arduino.h>
 #include <WebSocketsClient.h>
-#if defined(OG_SECURE_CLOUD) && (!defined(OG_VERIFIED_WSS_TRANSPORT) || OG_VERIFIED_WSS_TRANSPORT != 1)
-#error "OG_SECURE_CLOUD requires the reviewed verified WebSockets transport"
+#if defined(OTF_SECURE_CLOUD) && (!defined(OTF_VERIFIED_WSS_TRANSPORT) || OTF_VERIFIED_WSS_TRANSPORT != 1)
+#error "OTF_SECURE_CLOUD requires the reviewed verified WebSockets transport"
 #endif
 typedef String WSInterfaceString;
 #else
@@ -121,9 +121,10 @@ public:
     WebSocketsClient::disconnect();
   }
 
-#ifdef OG_SECURE_CLOUD
+#ifdef OTF_SECURE_CLOUD
   bool transportActive() const {return _client.tcp!=nullptr;}
-  void pauseTransport();
+  // Same main-loop-only contract as OTF::pauseCloud(); refuses active polling.
+  bool pauseTransport();
 #endif
 
   /**

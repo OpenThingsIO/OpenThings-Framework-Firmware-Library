@@ -152,7 +152,7 @@ int main() {
     capped.insert(elapsed);
   }
   assert(startup.size()>1000 && capped.size()>800);
-#ifdef OG_SECURE_CLOUD
+#ifdef OTF_SECURE_CLOUD
   for (uint32_t start : {60000u, 0xfffff000u}) {
     // Reentrant polling must stay blocked even if cleanup exceeds five seconds.
     reset(Peer::Healthy, start, 0, 6000);
@@ -162,9 +162,12 @@ int main() {
     assert(client.connected() && client.transportActive());
     size_t count = attempts.size();
     client.onEvent([&](WSEvent_t type, uint8_t *, size_t) {
-      if (type == WSEvent_DISCONNECTED) client.poll();
+      if (type == WSEvent_DISCONNECTED) {
+        assert(!client.pauseTransport()); // Teardown callback is not a safe point.
+        client.poll();
+      }
     });
-    client.pauseTransport();
+    assert(client.pauseTransport());
     assert(attempts.size() == count && !client.transportActive());
     assert(client.close_code() == 1000);
     uint32_t pausedAt = now;
@@ -183,7 +186,7 @@ int main() {
     peer = Peer::Healthy;
     run(client, 370000);
     assert(client.connected());
-    client.pauseTransport();
+    assert(client.pauseTransport());
     size_t count = attempts.size();
     run(client, 5300);
     assert(attempts.size() == count + 1 && client.connected());
@@ -203,8 +206,23 @@ int main() {
     begin(client);
     while (attempts.empty()) run(client, 10);
     assert(client.transportActive() && !client.connected());
-    client.pauseTransport();
+    assert(client.pauseTransport());
     assert(!client.transportActive());
+  }
+  // A WebSocket callback inside poll must not free the parser's active client.
+  reset(Peer::Healthy);
+  {
+    Client client;
+    unsigned refused = 0;
+    client.onEvent([&](WSEvent_t type, uint8_t *, size_t) {
+      if (type == WSEvent_CONNECTED) {
+        assert(!client.pauseTransport());
+        ++refused;
+      }
+    });
+    begin(client);run(client, 6000);
+    assert(refused==1 && client.connected() && client.transportActive());
+    assert(disconnects.empty());
   }
   std::puts("PASS real pause: cleanup, reentrancy, delay, history, half-open transport and rollover");
 #endif
